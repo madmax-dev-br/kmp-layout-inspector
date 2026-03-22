@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./gradlew :server:build --no-daemon)",
+      "Bash(./gradlew :composeApp:compileKotlinAndroid --no-daemon)",
+      "Bash(./gradlew :composeApp:compileDebugKotlinAndroid --no-daemon)",
+      "Bash(./gradlew :composeApp:compileDebugKotlinAndroid :server:build --no-daemon)",
+      "Bash(./gradlew :composeApp:compileDebugKotlinAndroid :server:build)"
+    ]
+  }
+}

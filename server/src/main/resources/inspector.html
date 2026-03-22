@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KMP Layout Inspector</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .toolbar {
+            width: 100%;
+            padding: 10px 24px;
+            background: #16213e;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid #0f3460;
+            flex-shrink: 0;
+        }
+        .toolbar h1 { font-size: 16px; font-weight: 600; letter-spacing: 0.5px; }
+        .toolbar button, .toolbar select {
+            padding: 6px 14px;
+            border: 1px solid #0f3460;
+            border-radius: 6px;
+            background: #0f3460;
+            color: #e0e0e0;
+            cursor: pointer;
+            font-size: 13px;
+            transition: background 0.2s;
+        }
+        .toolbar button:hover, .toolbar select:hover { background: #533483; border-color: #533483; }
+        .toolbar button.active { background: #533483; border-color: #7c4dff; }
+        .toolbar select { appearance: auto; }
+        .toolbar select option { background: #16213e; }
+        .toolbar .status { margin-left: auto; font-size: 12px; color: #888; }
+        .toolbar .status.ok { color: #4caf50; }
+        .toolbar .status.err { color: #ef5350; }
+        .strategy-label { font-size: 12px; color: #888; }
+
+        .content {
+            display: flex;
+            flex: 1;
+            padding: 16px;
+            gap: 16px;
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        /* LEFT: device frame */
+        .device-frame {
+            position: relative;
+            border: 2px solid #333;
+            border-radius: 12px;
+            overflow: hidden;
+            flex-shrink: 0;
+            background: #000;
+            align-self: flex-start;
+        }
+        .device-frame img {
+            display: block;
+            height: calc(100vh - 80px);
+            width: auto;
+        }
+        .overlay {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: all;
+            cursor: crosshair;
+        }
+        .element-rect {
+            position: absolute;
+            pointer-events: none;
+            transition: background 0.05s, outline-color 0.05s;
+        }
+        .element-rect.hovered {
+            background: rgba(76, 175, 80, 0.25);
+            outline: 2px solid #4caf50;
+            z-index: 10;
+        }
+        .element-rect.selected {
+            background: rgba(33, 150, 243, 0.25);
+            outline: 2px solid #2196f3;
+            z-index: 11;
+        }
+
+        /* MIDDLE: element list */
+        .element-list-panel {
+            background: #16213e;
+            border-radius: 10px;
+            padding: 16px;
+            width: 300px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-height: 0;
+        }
+        .element-list-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            flex-shrink: 0;
+        }
+        .element-list-header h2 {
+            font-size: 14px;
+            color: #81d4fa;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .element-list-header span { font-size: 12px; color: #555; }
+        .search-box {
+            width: 100%;
+            padding: 6px 10px;
+            border: 1px solid #333;
+            border-radius: 6px;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            font-size: 13px;
+            margin-bottom: 8px;
+            outline: none;
+            flex-shrink: 0;
+        }
+        .search-box:focus { border-color: #4caf50; }
+        .element-list {
+            flex: 1;
+            overflow-y: auto;
+            min-height: 0;
+        }
+        .element-list::-webkit-scrollbar { width: 6px; }
+        .element-list::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+        .el-item {
+            padding: 6px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            margin-bottom: 1px;
+            display: flex;
+            gap: 6px;
+            align-items: baseline;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+        .el-item:hover { background: #1a1a3e; }
+        .el-item.active { background: #0f3460; }
+        .el-item .el-class { color: #4caf50; }
+        .el-item.component-root .el-class { color: #ff9800; font-weight: 700; }
+        .el-item .el-text { color: #ffab40; overflow: hidden; text-overflow: ellipsis; }
+        .el-item .el-size { color: #666; margin-left: auto; flex-shrink: 0; }
+        .el-item .tree-indent { color: #444; flex-shrink: 0; white-space: pre; }
+        .el-item .tree-toggle { flex-shrink: 0; width: 14px; cursor: pointer; color: #888; user-select: none; }
+
+        /* RIGHT: element details */
+        .info-panel {
+            flex: 1;
+            background: #16213e;
+            border-radius: 10px;
+            padding: 16px;
+            overflow-y: auto;
+            min-width: 280px;
+            min-height: 0;
+        }
+        .info-panel::-webkit-scrollbar { width: 6px; }
+        .info-panel::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+        .info-panel h2 {
+            font-size: 14px;
+            margin-bottom: 10px;
+            color: #4caf50;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .info-panel .placeholder { color: #555; font-size: 13px; }
+        .detail-grid {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 6px 12px;
+            font-size: 13px;
+        }
+        .detail-label {
+            color: #888;
+            text-transform: uppercase;
+            font-size: 11px;
+            align-self: center;
+        }
+        .detail-value {
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            word-break: break-all;
+        }
+        .detail-value.highlight {
+            color: #4caf50;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        .props-section {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #333;
+        }
+        .props-section h3 {
+            font-size: 12px;
+            color: #81d4fa;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+        .prop-row {
+            display: flex;
+            gap: 8px;
+            font-size: 12px;
+            padding: 2px 0;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+        }
+        .prop-key { color: #ce93d8; flex-shrink: 0; }
+        .prop-val { color: #a5d6a7; word-break: break-all; }
+
+        .tooltip {
+            position: fixed;
+            background: rgba(22, 33, 62, 0.96);
+            border: 1px solid #4caf50;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 13px;
+            pointer-events: none;
+            z-index: 1000;
+            max-width: 320px;
+            display: none;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+        .tooltip .tt-class { color: #4caf50; font-weight: 700; font-size: 14px; }
+        .tooltip .tt-size { color: #81d4fa; margin-top: 2px; }
+        .tooltip .tt-text { color: #ffab40; margin-top: 2px; }
+        .tooltip .tt-id { color: #ce93d8; margin-top: 2px; font-size: 12px; }
+        .tooltip .tt-role { color: #a5d6a7; margin-top: 2px; font-size: 12px; }
+
+        .loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 60vh;
+            width: 300px;
+            color: #555;
+        }
+        .spinner {
+            width: 40px; height: 40px;
+            border: 3px solid #333;
+            border-top-color: #4caf50;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 16px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="toolbar">
+        <h1>KMP Layout Inspector</h1>
+        <span class="strategy-label">Strategy:</span>
+        <select id="strategy">
+            <option value="compose">Compose Semantics</option>
+            <option value="uiautomator">UI Automator</option>
+        </select>
+        <button onclick="refresh()" id="btnRefresh">Refresh</button>
+        <button onclick="toggleBounds()" id="btnBounds" class="active">Bounds</button>
+        <span class="status" id="status">Connecting...</span>
+    </div>
+    <div class="content">
+        <!-- LEFT: device screen -->
+        <div class="device-frame" id="deviceFrame">
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <div>Capturing device screen...</div>
+            </div>
+            <img id="screenshot" style="display:none" />
+            <div class="overlay" id="overlay"></div>
+        </div>
+        <!-- MIDDLE: element list -->
+        <div class="element-list-panel">
+            <div class="element-list-header">
+                <h2>Elements</h2>
+                <span id="elementCount">0 elements</span>
+            </div>
+            <input class="search-box" id="searchBox" placeholder="Filter elements..." oninput="filterElements()" />
+            <div class="element-list" id="elementList"></div>
+        </div>
+        <!-- RIGHT: element details -->
+        <div class="info-panel" id="infoPanel">
+            <h2>Element Details</h2>
+            <div class="placeholder" id="elementInfo">Hover over elements on the screen to inspect them. Click to pin selection.</div>
+        </div>
+    </div>
+    <div class="tooltip" id="tooltip"></div>
+
+    <script>
+    let hierarchy = [];
+    let deviceWidth = 1080;
+    let deviceHeight = 2400;
+    let boundsVisible = true;
+    let selectedIndex = -1;
+    let hoveredIndex = -1;
+
+    function getStrategy() {
+        return document.getElementById('strategy').value;
+    }
+
+    function normalize(raw, strategy) {
+        if (strategy === 'compose') {
+            return raw.map(n => ({
+                displayName: n.displayName || n.role || 'Node',
+                text: n.text || '',
+                role: n.role || '',
+                testTag: n.testTag || '',
+                contentDesc: n.contentDesc || '',
+                mergesDescendants: n.mergesDescendants || false,
+                id: n.id,
+                parentId: n.parentId,
+                childIds: n.childIds || [],
+                componentType: n.componentType || '',
+                componentId: n.componentId || '',
+                isComponentRoot: n.isComponentRoot || false,
+                properties: n.properties || {},
+                bounds: n.bounds,
+                width: n.width,
+                height: n.height,
+                _strategy: 'compose'
+            }));
+        } else {
+            return raw.map(n => ({
+                displayName: n.shortClass || 'View',
+                text: n.text || '',
+                role: '',
+                testTag: '',
+                contentDesc: n.contentDesc || '',
+                fullClass: n.fullClass || '',
+                resourceId: n.resourceId || '',
+                pkg: n.pkg || '',
+                properties: {},
+                bounds: n.bounds,
+                width: n.width,
+                height: n.height,
+                _strategy: 'uiautomator'
+            }));
+        }
+    }
+
+    async function refresh() {
+        const status = document.getElementById('status');
+        const btn = document.getElementById('btnRefresh');
+        const strategy = getStrategy();
+        status.textContent = 'Fetching...';
+        status.className = 'status';
+        btn.disabled = true;
+        selectedIndex = -1;
+        hoveredIndex = -1;
+
+        try {
+            const hierarchyEndpoint = strategy === 'compose' ? '/api/compose-tree' : '/api/hierarchy';
+
+            const [deviceInfo, screenshotBlob, rawData] = await Promise.all([
+                fetch('/api/device-info').then(r => { if (!r.ok) throw new Error('Device info failed'); return r.json(); }),
+                fetch('/api/screenshot').then(r => { if (!r.ok) throw new Error('Screenshot failed'); return r.blob(); }),
+                fetch(hierarchyEndpoint).then(r => { if (!r.ok) throw new Error('Hierarchy failed'); return r.json(); })
+            ]);
+
+            if (rawData && rawData.error) throw new Error(rawData.error);
+
+            deviceWidth = deviceInfo.width;
+            deviceHeight = deviceInfo.height;
+            hierarchy = normalize(Array.isArray(rawData) ? rawData : [], strategy);
+
+            const img = document.getElementById('screenshot');
+            const oldSrc = img.src;
+            img.src = URL.createObjectURL(screenshotBlob);
+            if (oldSrc) URL.revokeObjectURL(oldSrc);
+
+            img.onload = () => {
+                document.getElementById('loading').style.display = 'none';
+                img.style.display = 'block';
+                renderOverlay();
+                renderElementList();
+            };
+
+            const label = strategy === 'compose' ? 'Compose' : 'UIAutomator';
+            status.textContent = hierarchy.length + ' elements [' + label + ']';
+            status.className = 'status ok';
+        } catch (err) {
+            status.textContent = 'Error: ' + err.message;
+            status.className = 'status err';
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    // ── Hit-testing: find the smallest (innermost) element at a point ──
+    function hitTest(px, py) {
+        const img = document.getElementById('screenshot');
+        if (!img.clientWidth || !img.clientHeight) return -1;
+        const scaleX = img.clientWidth / deviceWidth;
+        const scaleY = img.clientHeight / deviceHeight;
+
+        let bestIndex = -1;
+        let bestArea = Infinity;
+
+        hierarchy.forEach((el, i) => {
+            if (el.width <= 0 || el.height <= 0) return;
+            const l = el.bounds.left * scaleX;
+            const t = el.bounds.top * scaleY;
+            const r = el.bounds.right * scaleX;
+            const b = el.bounds.bottom * scaleY;
+            if (px >= l && px <= r && py >= t && py <= b) {
+                const area = el.width * el.height;
+                if (area < bestArea) {
+                    bestArea = area;
+                    bestIndex = i;
+                }
+            }
+        });
+        return bestIndex;
+    }
+
+    function renderOverlay() {
+        const overlay = document.getElementById('overlay');
+        const img = document.getElementById('screenshot');
+        overlay.innerHTML = '';
+
+        const scaleX = img.clientWidth / deviceWidth;
+        const scaleY = img.clientHeight / deviceHeight;
+
+        hierarchy.forEach((el, i) => {
+            if (el.width <= 0 || el.height <= 0) return;
+
+            const rect = document.createElement('div');
+            rect.className = 'element-rect';
+            rect.style.left = (el.bounds.left * scaleX) + 'px';
+            rect.style.top = (el.bounds.top * scaleY) + 'px';
+            rect.style.width = (el.width * scaleX) + 'px';
+            rect.style.height = (el.height * scaleY) + 'px';
+            rect.dataset.index = i;
+
+            if (boundsVisible) {
+                rect.style.outline = '1px solid rgba(76,175,80,0.35)';
+            }
+            if (i === selectedIndex) rect.classList.add('selected');
+
+            overlay.appendChild(rect);
+        });
+
+        // Single event handlers on overlay for hit-testing
+        overlay.onmousemove = (e) => {
+            const rect = overlay.getBoundingClientRect();
+            const idx = hitTest(e.clientX - rect.left, e.clientY - rect.top);
+            if (idx !== hoveredIndex) {
+                // Un-hover previous
+                if (hoveredIndex >= 0) {
+                    const prev = overlay.querySelector('[data-index="' + hoveredIndex + '"]');
+                    if (prev && !prev.classList.contains('selected')) prev.classList.remove('hovered');
+                }
+                hoveredIndex = idx;
+                if (idx >= 0) {
+                    const cur = overlay.querySelector('[data-index="' + idx + '"]');
+                    if (cur && !cur.classList.contains('selected')) cur.classList.add('hovered');
+                    showTooltipFor(e, hierarchy[idx]);
+                } else {
+                    hideTooltip();
+                }
+            } else if (idx >= 0) {
+                moveTooltip(e);
+            }
+        };
+
+        overlay.onmouseleave = () => {
+            if (hoveredIndex >= 0) {
+                const prev = overlay.querySelector('[data-index="' + hoveredIndex + '"]');
+                if (prev) prev.classList.remove('hovered');
+                hoveredIndex = -1;
+            }
+            hideTooltip();
+        };
+
+        overlay.onclick = (e) => {
+            const rect = overlay.getBoundingClientRect();
+            const idx = hitTest(e.clientX - rect.left, e.clientY - rect.top);
+            if (idx >= 0) selectElement(idx);
+        };
+    }
+
+    function showTooltipFor(e, el) {
+        const tt = document.getElementById('tooltip');
+        let html = '<div class="tt-class">' + el.displayName + '</div>';
+        html += '<div class="tt-size">' + el.width + ' \u00d7 ' + el.height + ' px</div>';
+        if (el.text) html += '<div class="tt-text">"' + el.text.substring(0, 60) + '"</div>';
+        if (el._strategy === 'compose') {
+            if (el.role && el.role !== el.displayName) html += '<div class="tt-role">Role: ' + el.role + '</div>';
+            if (el.testTag) html += '<div class="tt-id">tag: ' + el.testTag + '</div>';
+        } else {
+            if (el.resourceId) html += '<div class="tt-id">' + el.resourceId.split('/').pop() + '</div>';
+        }
+        tt.innerHTML = html;
+        tt.style.display = 'block';
+        moveTooltip(e);
+    }
+
+    function moveTooltip(e) {
+        const tt = document.getElementById('tooltip');
+        let x = e.clientX + 15;
+        let y = e.clientY + 15;
+        if (x + 320 > window.innerWidth) x = e.clientX - 320 - 15;
+        if (y + 150 > window.innerHeight) y = e.clientY - 150 - 15;
+        tt.style.left = x + 'px';
+        tt.style.top = y + 'px';
+    }
+
+    function hideTooltip() {
+        document.getElementById('tooltip').style.display = 'none';
+    }
+
+    function selectElement(index) {
+        selectedIndex = index;
+        const el = hierarchy[index];
+
+        // Update overlay highlights
+        document.querySelectorAll('.element-rect').forEach(r => {
+            r.classList.remove('selected');
+            r.classList.remove('hovered');
+        });
+        const rect = document.querySelector('.element-rect[data-index="' + index + '"]');
+        if (rect) rect.classList.add('selected');
+
+        // Update list highlights
+        document.querySelectorAll('.el-item').forEach(r => r.classList.remove('active'));
+        const listItem = document.querySelector('.el-item[data-index="' + index + '"]');
+        if (listItem) {
+            listItem.classList.add('active');
+            listItem.scrollIntoView({ block: 'nearest' });
+        }
+
+        // Build detail panel
+        const info = document.getElementById('elementInfo');
+        let html = '<div class="detail-grid">';
+        html += '<div class="detail-label">Type</div><div class="detail-value highlight">' + el.displayName + '</div>';
+
+        if (el._strategy === 'compose') {
+            if (el.componentType) html += '<div class="detail-label">Component</div><div class="detail-value" style="color:#ff9800;font-weight:600">' + el.componentType + '</div>';
+            if (el.componentId) html += '<div class="detail-label">Component ID</div><div class="detail-value" style="color:#ff9800;font-size:11px">' + el.componentId + '</div>';
+            if (el.role) html += '<div class="detail-label">Role</div><div class="detail-value" style="color:#a5d6a7">' + el.role + '</div>';
+            if (el.text) html += '<div class="detail-label">Text</div><div class="detail-value" style="color:#ffab40">"' + el.text + '"</div>';
+            if (el.contentDesc) html += '<div class="detail-label">Description</div><div class="detail-value">' + el.contentDesc + '</div>';
+            if (el.testTag) html += '<div class="detail-label">Test Tag</div><div class="detail-value" style="color:#ce93d8">' + el.testTag + '</div>';
+            html += '<div class="detail-label">Node ID</div><div class="detail-value">' + el.id + '</div>';
+            if (el.parentId >= 0) html += '<div class="detail-label">Parent ID</div><div class="detail-value">' + el.parentId + '</div>';
+            html += '<div class="detail-label">Children</div><div class="detail-value">' + (el.childIds ? el.childIds.length : 0) + '</div>';
+            if (el.mergesDescendants) html += '<div class="detail-label">Merging</div><div class="detail-value" style="color:#ff9800">true</div>';
+        } else {
+            if (el.fullClass) html += '<div class="detail-label">Full Class</div><div class="detail-value">' + el.fullClass + '</div>';
+            if (el.text) html += '<div class="detail-label">Text</div><div class="detail-value" style="color:#ffab40">"' + el.text + '"</div>';
+            if (el.resourceId) html += '<div class="detail-label">Resource ID</div><div class="detail-value" style="color:#ce93d8">' + el.resourceId + '</div>';
+            if (el.contentDesc) html += '<div class="detail-label">Description</div><div class="detail-value">' + el.contentDesc + '</div>';
+            if (el.pkg) html += '<div class="detail-label">Package</div><div class="detail-value">' + el.pkg + '</div>';
+        }
+
+        html += '<div class="detail-label">Position</div><div class="detail-value">(' + el.bounds.left + ', ' + el.bounds.top + ')</div>';
+        html += '<div class="detail-label">Size</div><div class="detail-value" style="color:#81d4fa">' + el.width + ' \u00d7 ' + el.height + ' px</div>';
+        html += '<div class="detail-label">Bounds</div><div class="detail-value">[' + el.bounds.left + ',' + el.bounds.top + '][' + el.bounds.right + ',' + el.bounds.bottom + ']</div>';
+        html += '</div>';
+
+        if (el._strategy === 'compose' && el.properties && Object.keys(el.properties).length > 0) {
+            html += '<div class="props-section"><h3>Semantic Properties</h3>';
+            for (const [key, val] of Object.entries(el.properties)) {
+                html += '<div class="prop-row"><span class="prop-key">' + key + ':</span><span class="prop-val">' + val + '</span></div>';
+            }
+            html += '</div>';
+        }
+
+        info.innerHTML = html;
+    }
+
+    // Collapsed node IDs (by semantics id)
+    let collapsedNodes = new Set();
+
+    function renderElementList() {
+        const list = document.getElementById('elementList');
+        list.innerHTML = '';
+        const visible = hierarchy.filter(el => el.width > 0 && el.height > 0);
+        document.getElementById('elementCount').textContent = visible.length + ' elements';
+
+        const strategy = getStrategy();
+        if (strategy === 'compose' && hierarchy.length > 0 && hierarchy[0]._strategy === 'compose') {
+            renderComposeTree(list);
+        } else {
+            renderFlatList(list);
+        }
+    }
+
+    function renderFlatList(list) {
+        hierarchy.forEach((el, i) => {
+            if (el.width <= 0 || el.height <= 0) return;
+            list.appendChild(createElItem(el, i, 0, false));
+        });
+    }
+
+    function renderComposeTree(list) {
+        // Build lookup: semantics id -> array index
+        const idToIndex = {};
+        hierarchy.forEach((el, i) => { idToIndex[el.id] = i; });
+
+        // Find roots (parentId < 0 or parent not in list)
+        const roots = [];
+        hierarchy.forEach((el, i) => {
+            if (el.parentId == null || el.parentId < 0 || idToIndex[el.parentId] === undefined) {
+                roots.push(i);
+            }
+        });
+
+        function renderSubtree(idx, depth) {
+            const el = hierarchy[idx];
+            if (!el || (el.width <= 0 && el.height <= 0)) return;
+
+            const hasChildren = el.childIds && el.childIds.length > 0;
+            const isCollapsed = collapsedNodes.has(el.id);
+            const item = createElItem(el, idx, depth, hasChildren, isCollapsed);
+            list.appendChild(item);
+
+            if (hasChildren && !isCollapsed) {
+                for (const childId of el.childIds) {
+                    const childIdx = idToIndex[childId];
+                    if (childIdx !== undefined) {
+                        renderSubtree(childIdx, depth + 1);
+                    }
+                }
+            }
+        }
+
+        roots.forEach(idx => renderSubtree(idx, 0));
+    }
+
+    function createElItem(el, i, depth, hasChildren, isCollapsed) {
+        const item = document.createElement('div');
+        item.className = 'el-item';
+        if (el.isComponentRoot) item.classList.add('component-root');
+        item.dataset.index = i;
+        item.dataset.search = [el.displayName, el.text, el.role, el.testTag || '', el.resourceId || '', el.componentType || ''].join(' ').toLowerCase();
+
+        let html = '';
+        if (depth > 0) {
+            html += '<span class="tree-indent">' + '│ '.repeat(depth - 1) + '├ ' + '</span>';
+        }
+        if (hasChildren) {
+            html += '<span class="tree-toggle">' + (isCollapsed ? '▶' : '▼') + '</span>';
+        } else if (depth > 0) {
+            html += '<span class="tree-toggle"> </span>';
+        }
+        html += '<span class="el-class">' + el.displayName + '</span>';
+        if (el.text) {
+            html += '<span class="el-text">"' + el.text.substring(0, 25) + '"</span>';
+        } else if (el._strategy === 'compose' && el.testTag) {
+            html += '<span class="el-text">#' + el.testTag + '</span>';
+        } else if (el.resourceId) {
+            html += '<span class="el-text">' + el.resourceId.split('/').pop() + '</span>';
+        }
+        html += '<span class="el-size">' + el.width + '\u00d7' + el.height + '</span>';
+        item.innerHTML = html;
+
+        if (i === selectedIndex) item.classList.add('active');
+
+        item.addEventListener('click', (e) => {
+            // Check if toggle was clicked
+            if (e.target.classList.contains('tree-toggle') && hasChildren) {
+                if (collapsedNodes.has(el.id)) {
+                    collapsedNodes.delete(el.id);
+                } else {
+                    collapsedNodes.add(el.id);
+                }
+                renderElementList();
+                return;
+            }
+            selectElement(i);
+        });
+        item.addEventListener('mouseenter', () => highlightOverlayRect(i, true));
+        item.addEventListener('mouseleave', () => highlightOverlayRect(i, false));
+
+        return item;
+    }
+
+    function highlightOverlayRect(i, on) {
+        const rect = document.querySelector('.element-rect[data-index="' + i + '"]');
+        if (!rect || rect.classList.contains('selected')) return;
+        if (on) {
+            rect.style.outline = '2px solid #ff9800';
+            rect.style.background = 'rgba(255,152,0,0.2)';
+        } else {
+            rect.style.outline = boundsVisible ? '1px solid rgba(76,175,80,0.35)' : 'none';
+            rect.style.background = 'transparent';
+        }
+    }
+
+    function filterElements() {
+        const q = document.getElementById('searchBox').value.toLowerCase();
+        document.querySelectorAll('.el-item').forEach(item => {
+            item.style.display = item.dataset.search.includes(q) ? '' : 'none';
+        });
+    }
+
+    function toggleBounds() {
+        boundsVisible = !boundsVisible;
+        document.getElementById('btnBounds').classList.toggle('active', boundsVisible);
+        document.querySelectorAll('.element-rect').forEach(r => {
+            if (!r.classList.contains('selected') && !r.classList.contains('hovered')) {
+                r.style.outline = boundsVisible ? '1px solid rgba(76,175,80,0.35)' : 'none';
+            }
+        });
+    }
+
+    let resizeTimer;
+    window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(renderOverlay, 100); });
+
+    refresh();
+    </script>
+</body>
+</html>
