@@ -5,7 +5,11 @@
       "Bash(./gradlew :composeApp:compileKotlinAndroid --no-daemon)",
       "Bash(./gradlew :composeApp:compileDebugKotlinAndroid --no-daemon)",
       "Bash(./gradlew :composeApp:compileDebugKotlinAndroid :server:build --no-daemon)",
-      "Bash(./gradlew :composeApp:compileDebugKotlinAndroid :server:build)"
+      "Bash(./gradlew :composeApp:compileDebugKotlinAndroid :server:build)",
+      "Bash(./gradlew :server:compileKotlin)",
+      "Bash(./gradlew :composeApp:compileKotlinAndroid)",
+      "Bash(./gradlew :composeApp:compileDebugKotlinAndroid)",
+      "Bash(./gradlew :server:compileKotlin :composeApp:compileDebugKotlinAndroid)"
     ]
   }
 }

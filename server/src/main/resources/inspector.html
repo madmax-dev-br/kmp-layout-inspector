@@ -91,6 +91,14 @@
             outline: 2px solid #2196f3;
             z-index: 11;
         }
+        .element-rect.has-analytics {
+            outline: 2px dashed #ff9800 !important;
+            background: rgba(255, 152, 0, 0.10);
+        }
+        .element-rect.has-analytics.selected {
+            outline: 2px solid #2196f3 !important;
+            background: rgba(33, 150, 243, 0.25);
+        }
 
         /* MIDDLE: element list */
         .element-list-panel {
@@ -159,6 +167,18 @@
         .el-item .el-size { color: #666; margin-left: auto; flex-shrink: 0; }
         .el-item .tree-indent { color: #444; flex-shrink: 0; white-space: pre; }
         .el-item .tree-toggle { flex-shrink: 0; width: 14px; cursor: pointer; color: #888; user-select: none; }
+        .el-item.has-analytics { border-left: 3px solid #ff9800; }
+        .el-item .el-analytics-badge {
+            font-size: 9px;
+            background: #ff9800;
+            color: #000;
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-weight: 700;
+            flex-shrink: 0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
 
         /* RIGHT: element details */
         .info-panel {
@@ -222,6 +242,34 @@
         .prop-key { color: #ce93d8; flex-shrink: 0; }
         .prop-val { color: #a5d6a7; word-break: break-all; }
 
+        .json-section {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #333;
+        }
+        .json-section h3 {
+            font-size: 12px;
+            color: #ff9800;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            letter-spacing: 1px;
+        }
+        .json-block {
+            background: #0d1117;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 12px;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 12px;
+            color: #a5d6a7;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .json-block::-webkit-scrollbar { width: 6px; }
+        .json-block::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+
         .tooltip {
             position: fixed;
             background: rgba(22, 33, 62, 0.96);
@@ -271,6 +319,10 @@
         </select>
         <button onclick="refresh()" id="btnRefresh">Refresh</button>
         <button onclick="toggleBounds()" id="btnBounds" class="active">Bounds</button>
+        <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;user-select:none">
+            <input type="checkbox" id="autoRefresh" checked style="cursor:pointer" />
+            Auto-refresh
+        </label>
         <span class="status" id="status">Connecting...</span>
     </div>
     <div class="content">
@@ -307,6 +359,12 @@
     let boundsVisible = true;
     let selectedIndex = -1;
     let hoveredIndex = -1;
+    let componentsData = null; // cached /api/components response
+    let analyticsComponentIds = new Set(); // component IDs that have analytics events
+
+    function escapeHtml(str) {
+        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
 
     function getStrategy() {
         return document.getElementById('strategy').value;
@@ -365,11 +423,21 @@
         try {
             const hierarchyEndpoint = strategy === 'compose' ? '/api/compose-tree' : '/api/hierarchy';
 
-            const [deviceInfo, screenshotBlob, rawData] = await Promise.all([
+            const [deviceInfo, screenshotBlob, rawData, compData] = await Promise.all([
                 fetch('/api/device-info').then(r => { if (!r.ok) throw new Error('Device info failed'); return r.json(); }),
                 fetch('/api/screenshot').then(r => { if (!r.ok) throw new Error('Screenshot failed'); return r.blob(); }),
-                fetch(hierarchyEndpoint).then(r => { if (!r.ok) throw new Error('Hierarchy failed'); return r.json(); })
+                fetch(hierarchyEndpoint).then(r => { if (!r.ok) throw new Error('Hierarchy failed'); return r.json(); }),
+                fetch('/api/components').then(r => r.ok ? r.json() : null).catch(() => null)
             ]);
+            componentsData = compData;
+            analyticsComponentIds = new Set();
+            if (compData && Array.isArray(compData)) {
+                compData.forEach(c => {
+                    if (c.events && c.events.some(e => e.eventType === 'analytics')) {
+                        analyticsComponentIds.add(c.id);
+                    }
+                });
+            }
 
             if (rawData && rawData.error) throw new Error(rawData.error);
 
@@ -446,7 +514,9 @@
             rect.style.height = (el.height * scaleY) + 'px';
             rect.dataset.index = i;
 
-            if (boundsVisible) {
+            if (el.componentId && analyticsComponentIds.has(el.componentId) && el.isComponentRoot) {
+                rect.classList.add('has-analytics');
+            } else if (boundsVisible) {
                 rect.style.outline = '1px solid rgba(76,175,80,0.35)';
             }
             if (i === selectedIndex) rect.classList.add('selected');
@@ -580,6 +650,36 @@
             html += '</div>';
         }
 
+        // Show SDUI JSON and events for the component that rendered this element
+        if (componentsData && el.componentId) {
+            const comp = componentsData.find(c => c.id === el.componentId);
+            if (comp) {
+                if (comp.events && comp.events.length > 0) {
+                    html += '<div class="json-section"><h3 style="color:#ff9800">Events (' + comp.events.length + ')</h3>';
+                    comp.events.forEach(ev => {
+                        const typeColor = ev.eventType === 'analytics' ? '#ff9800' : '#4dd0e1';
+                        html += '<div style="margin-bottom:6px;padding:8px;background:#0d1117;border-radius:6px;border-left:3px solid ' + typeColor + '">';
+                        html += '<div style="font-size:11px;color:' + typeColor + ';font-weight:700;text-transform:uppercase;margin-bottom:4px">' + ev.eventType + '</div>';
+                        if (ev.eventType === 'analytics') {
+                            html += '<div style="font-size:12px;font-family:monospace;color:#a5d6a7">' + escapeHtml(ev.eventName) + '</div>';
+                            if (ev.params && Object.keys(ev.params).length > 0) {
+                                for (const [k, v] of Object.entries(ev.params)) {
+                                    html += '<div class="prop-row"><span class="prop-key">' + escapeHtml(k) + ':</span><span class="prop-val">' + escapeHtml(v) + '</span></div>';
+                                }
+                            }
+                        } else if (ev.eventType === 'deeplink') {
+                            html += '<div style="font-size:12px;font-family:monospace;color:#4dd0e1">' + escapeHtml(ev.url) + '</div>';
+                        }
+                        html += '</div>';
+                    });
+                    html += '</div>';
+                }
+                html += '<div class="json-section"><h3>SDUI Component JSON</h3>';
+                html += '<div class="json-block">' + escapeHtml(JSON.stringify(comp, null, 2)) + '</div>';
+                html += '</div>';
+            }
+        }
+
         info.innerHTML = html;
     }
 
@@ -646,6 +746,8 @@
         const item = document.createElement('div');
         item.className = 'el-item';
         if (el.isComponentRoot) item.classList.add('component-root');
+        const hasAnalytics = el.isComponentRoot && el.componentId && analyticsComponentIds.has(el.componentId);
+        if (hasAnalytics) item.classList.add('has-analytics');
         item.dataset.index = i;
         item.dataset.search = [el.displayName, el.text, el.role, el.testTag || '', el.resourceId || '', el.componentType || ''].join(' ').toLowerCase();
 
@@ -659,6 +761,7 @@
             html += '<span class="tree-toggle"> </span>';
         }
         html += '<span class="el-class">' + el.displayName + '</span>';
+        if (hasAnalytics) html += '<span class="el-analytics-badge">analytics</span>';
         if (el.text) {
             html += '<span class="el-text">"' + el.text.substring(0, 25) + '"</span>';
         } else if (el._strategy === 'compose' && el.testTag) {
@@ -722,6 +825,37 @@
     let resizeTimer;
     window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(renderOverlay, 100); });
 
+    // ── Auto-refresh on interaction idle ──
+    let lastRefreshedGeneration = -1;
+    let autoRefreshPolling = null;
+    let isRefreshing = false;
+
+    function startAutoRefreshPolling() {
+        if (autoRefreshPolling) return;
+        autoRefreshPolling = setInterval(async () => {
+            if (!document.getElementById('autoRefresh').checked) return;
+            if (isRefreshing) return;
+            try {
+                const res = await fetch('/api/interaction-status');
+                const data = await res.json();
+                if (data.idle && data.generation > lastRefreshedGeneration) {
+                    lastRefreshedGeneration = data.generation;
+                    isRefreshing = true;
+                    await refresh();
+                    isRefreshing = false;
+                }
+            } catch (_) {}
+        }, 500);
+    }
+
+    document.getElementById('autoRefresh').addEventListener('change', (e) => {
+        if (e.target.checked) {
+            lastRefreshedGeneration = -1;
+            startAutoRefreshPolling();
+        }
+    });
+
+    startAutoRefreshPolling();
     refresh();
     </script>
 </body>

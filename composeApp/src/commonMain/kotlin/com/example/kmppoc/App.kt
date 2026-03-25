@@ -19,156 +19,54 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlin.random.Random
+import io.ktor.client.*
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
+import kotlinx.serialization.builtins.ListSerializer
 
-// ── Random ID generator (UUID-like, KMP-safe) ──
+// ── Helper: parse hex color string to Compose Color ──
 
-private fun randomId(): String {
-    val c = "abcdef0123456789"
-    fun seg(n: Int) = buildString { repeat(n) { append(c[Random.nextInt(c.length)]) } }
-    return "${seg(8)}-${seg(4)}-${seg(4)}-${seg(4)}-${seg(12)}"
+private fun parseHexColor(hex: String): Color {
+    val cleaned = hex.removePrefix("#")
+    val argb = when (cleaned.length) {
+        6 -> "FF$cleaned"
+        8 -> cleaned
+        else -> "FFFFFFFF"
+    }
+    return Color(argb.toLong(16).toInt())
 }
 
-// ── Sealed class Component hierarchy ──
+// ── Resolve typeName for semantics tag ──
 
-sealed class Component {
-    abstract val id: String
-    abstract val typeName: String
-
-    data class UserProfile(
-        override val id: String = randomId(),
-        val name: String,
-        val role: String,
-        val email: String,
-        val initials: String,
-    ) : Component() {
-        override val typeName = "UserProfile"
-    }
-
-    data class Statistics(
-        override val id: String = randomId(),
-        val items: List<StatItem>,
-    ) : Component() {
-        override val typeName = "Statistics"
-        data class StatItem(val label: String, val progress: Float, val value: String)
-    }
-
-    data class Settings(
-        override val id: String = randomId(),
-    ) : Component() {
-        override val typeName = "Settings"
-    }
-
-    data class ColorPalette(
-        override val id: String = randomId(),
-        val colors: List<Color>,
-    ) : Component() {
-        override val typeName = "ColorPalette"
-    }
-
-    data class Weather(
-        override val id: String = randomId(),
-        val city: String,
-        val condition: String,
-        val temp: String,
-        val humidity: String,
-        val wind: String,
-        val uvIndex: String,
-    ) : Component() {
-        override val typeName = "Weather"
-    }
-
-    data class Quote(
-        override val id: String = randomId(),
-        val text: String,
-        val author: String,
-    ) : Component() {
-        override val typeName = "Quote"
-    }
-
-    data class TaskProgress(
-        override val id: String = randomId(),
-        val tasks: List<Pair<String, Boolean>>,
-    ) : Component() {
-        override val typeName = "TaskProgress"
-    }
-
-    data class ChipGroup(
-        override val id: String = randomId(),
-        val tags: List<String>,
-    ) : Component() {
-        override val typeName = "ChipGroup"
-    }
+private fun UiComponent.typeName(): String = when (this) {
+    is UiComponent.UserProfile -> "UserProfile"
+    is UiComponent.Statistics -> "Statistics"
+    is UiComponent.Settings -> "Settings"
+    is UiComponent.ColorPalette -> "ColorPalette"
+    is UiComponent.Weather -> "Weather"
+    is UiComponent.Quote -> "Quote"
+    is UiComponent.TaskProgress -> "TaskProgress"
+    is UiComponent.ChipGroup -> "ChipGroup"
 }
-
-// ── Data array ──
-
-val components: List<Component> = listOf(
-    Component.UserProfile(
-        name = "John Doe",
-        role = "Senior Developer",
-        email = "john.doe@example.com",
-        initials = "JD",
-    ),
-    Component.Statistics(
-        items = listOf(
-            Component.Statistics.StatItem("Projects Completed", 0.85f, "85%"),
-            Component.Statistics.StatItem("Tasks Done", 0.62f, "62%"),
-            Component.Statistics.StatItem("Code Coverage", 0.91f, "91%"),
-        ),
-    ),
-    Component.Settings(),
-    Component.ColorPalette(
-        colors = listOf(
-            Color(0xFFE57373), Color(0xFF81C784), Color(0xFF64B5F6),
-            Color(0xFFFFD54F), Color(0xFFBA68C8), Color(0xFF4DD0E1),
-            Color(0xFFFF8A65), Color(0xFFA1887F),
-        ),
-    ),
-    Component.Weather(
-        city = "San Francisco",
-        condition = "Partly Cloudy",
-        temp = "22°C",
-        humidity = "65%",
-        wind = "12 km/h",
-        uvIndex = "3",
-    ),
-    Component.Quote(
-        text = "The best way to predict the future is to invent it.",
-        author = "Alan Kay",
-    ),
-    Component.TaskProgress(
-        tasks = listOf(
-            "Design System Update" to true,
-            "API Integration" to true,
-            "Unit Tests" to false,
-            "Documentation" to false,
-            "Code Review" to false,
-        ),
-    ),
-    Component.ChipGroup(
-        tags = listOf("Kotlin", "Compose", "Multiplatform", "Android", "iOS", "Web", "Ktor", "Gradle"),
-    ),
-)
 
 // ── Wrapper composable ──
 
 @Composable
-fun ComponentCard(component: Component) {
+fun ComponentCard(component: UiComponent) {
     Box(
         modifier = Modifier.semantics {
-            testTag = "Component:${component.typeName}:${component.id}"
+            testTag = "Component:${component.typeName()}:${component.id}"
         }
     ) {
         when (component) {
-            is Component.UserProfile -> UserProfileCard(component)
-            is Component.Statistics -> StatisticsCard(component)
-            is Component.Settings -> SettingsCard()
-            is Component.ColorPalette -> ColorPaletteCard(component)
-            is Component.Weather -> WeatherCard(component)
-            is Component.Quote -> QuoteCard(component)
-            is Component.TaskProgress -> TaskProgressCard(component)
-            is Component.ChipGroup -> ChipGroupCard(component)
+            is UiComponent.UserProfile -> UserProfileCard(component)
+            is UiComponent.Statistics -> StatisticsCard(component)
+            is UiComponent.Settings -> SettingsCard()
+            is UiComponent.ColorPalette -> ColorPaletteCard(component)
+            is UiComponent.Weather -> WeatherCard(component)
+            is UiComponent.Quote -> QuoteCard(component)
+            is UiComponent.TaskProgress -> TaskProgressCard(component)
+            is UiComponent.ChipGroup -> ChipGroupCard(component)
         }
     }
 }
@@ -178,6 +76,29 @@ fun ComponentCard(component: Component) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun App() {
+    var components by remember { mutableStateOf<List<UiComponent>>(emptyList()) }
+    var loading by remember { mutableStateOf(true) }
+    var error by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(Unit) {
+        try {
+            val client = HttpClient()
+            val response = client.get("http://10.0.2.2:$SERVER_PORT/api/components")
+            val json = response.bodyAsText()
+            components = ComponentJson.decodeFromString(
+                ListSerializer(UiComponent.serializer()),
+                json,
+            )
+            client.close()
+        } catch (e: Exception) {
+            // Fallback to local data if server is unreachable
+            error = e.message
+            components = defaultComponents
+        } finally {
+            loading = false
+        }
+    }
+
     MaterialTheme {
         Scaffold(
             topBar = {
@@ -190,16 +111,22 @@ fun App() {
                 )
             }
         ) { padding ->
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                contentPadding = PaddingValues(vertical = 12.dp),
-            ) {
-                items(components, key = { it.id }) { component ->
-                    ComponentCard(component)
+            if (loading) {
+                Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(vertical = 12.dp),
+                ) {
+                    items(components, key = { it.id }) { component ->
+                        ComponentCard(component)
+                    }
                 }
             }
         }
@@ -209,7 +136,7 @@ fun App() {
 // ── Card composables ──
 
 @Composable
-private fun UserProfileCard(data: Component.UserProfile) {
+private fun UserProfileCard(data: UiComponent.UserProfile) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -244,7 +171,7 @@ private fun UserProfileCard(data: Component.UserProfile) {
 }
 
 @Composable
-private fun StatisticsCard(data: Component.Statistics) {
+private fun StatisticsCard(data: UiComponent.Statistics) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -317,7 +244,7 @@ private fun SettingSwitch(label: String, checked: Boolean, onCheckedChange: (Boo
 }
 
 @Composable
-private fun ColorPaletteCard(data: Component.ColorPalette) {
+private fun ColorPaletteCard(data: UiComponent.ColorPalette) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -327,8 +254,8 @@ private fun ColorPaletteCard(data: Component.ColorPalette) {
             Text("Color Palette", fontWeight = FontWeight.Bold, fontSize = 18.sp)
             Spacer(modifier = Modifier.height(12.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                data.colors.forEach { color ->
-                    Box(modifier = Modifier.size(32.dp).clip(CircleShape).background(color))
+                data.colors.forEach { hex ->
+                    Box(modifier = Modifier.size(32.dp).clip(CircleShape).background(parseHexColor(hex)))
                 }
             }
         }
@@ -336,7 +263,7 @@ private fun ColorPaletteCard(data: Component.ColorPalette) {
 }
 
 @Composable
-private fun WeatherCard(data: Component.Weather) {
+private fun WeatherCard(data: UiComponent.Weather) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -376,7 +303,7 @@ private fun WeatherDetail(label: String, value: String) {
 }
 
 @Composable
-private fun QuoteCard(data: Component.Quote) {
+private fun QuoteCard(data: UiComponent.Quote) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -409,7 +336,7 @@ private fun QuoteCard(data: Component.Quote) {
 }
 
 @Composable
-private fun TaskProgressCard(data: Component.TaskProgress) {
+private fun TaskProgressCard(data: UiComponent.TaskProgress) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -418,14 +345,14 @@ private fun TaskProgressCard(data: Component.TaskProgress) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text("Sprint Tasks", fontWeight = FontWeight.Bold, fontSize = 18.sp)
             Spacer(modifier = Modifier.height(8.dp))
-            data.tasks.forEach { (task, done) ->
+            data.tasks.forEach { task ->
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Checkbox(checked = done, onCheckedChange = null)
+                    Checkbox(checked = task.done, onCheckedChange = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(task, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(task.name, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
         }
@@ -433,7 +360,7 @@ private fun TaskProgressCard(data: Component.TaskProgress) {
 }
 
 @Composable
-private fun ChipGroupCard(data: Component.ChipGroup) {
+private fun ChipGroupCard(data: UiComponent.ChipGroup) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),

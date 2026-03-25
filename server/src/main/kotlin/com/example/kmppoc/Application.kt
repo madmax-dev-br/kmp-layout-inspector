@@ -6,6 +6,7 @@ import io.ktor.server.engine.*
 import io.ktor.server.netty.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import kotlinx.serialization.builtins.ListSerializer
 import org.w3c.dom.Element
 import org.w3c.dom.Node
 import java.io.ByteArrayInputStream
@@ -48,6 +49,14 @@ fun Application.module() {
                 ?.bufferedReader()?.readText()
                 ?: "inspector.html not found on classpath"
             call.respondText(html, ContentType.Text.Html)
+        }
+
+        get("/api/components") {
+            val json = ComponentJson.encodeToString(
+                ListSerializer(UiComponent.serializer()),
+                defaultComponents,
+            )
+            call.respondText(json, ContentType.Application.Json)
         }
 
         get("/api/screenshot") {
@@ -139,6 +148,29 @@ fun Application.module() {
                     """{"error":"${e.message?.replace("\"", "'")}"}""",
                     ContentType.Application.Json,
                     HttpStatusCode.InternalServerError
+                )
+            }
+        }
+
+        get("/api/interaction-status") {
+            try {
+                val fwd = ProcessBuilder(adbPath, "forward", "tcp:8082", "tcp:8082")
+                    .redirectErrorStream(true).start()
+                fwd.inputStream.bufferedReader().readText()
+                fwd.waitFor()
+
+                val url = java.net.URL("http://localhost:8082/interaction-status")
+                val conn = url.openConnection() as java.net.HttpURLConnection
+                conn.connectTimeout = 1000
+                conn.readTimeout = 1000
+                val json = conn.inputStream.bufferedReader().readText()
+                conn.disconnect()
+
+                call.respondText(json, ContentType.Application.Json)
+            } catch (_: Exception) {
+                call.respondText(
+                    """{"idle":false,"generation":0}""",
+                    ContentType.Application.Json
                 )
             }
         }

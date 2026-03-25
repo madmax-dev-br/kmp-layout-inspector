@@ -1,8 +1,12 @@
 package com.example.kmppoc
 
 import android.app.Activity
+import android.os.Handler
+import android.os.Looper
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.Window
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsOwner
 import androidx.compose.ui.text.AnnotatedString
@@ -19,8 +23,17 @@ class ComposeInspectorServer(private val activity: Activity) {
     @Volatile
     private var running = false
 
+    // Interaction idle tracking
+    @Volatile
+    private var idleGeneration = 0
+    @Volatile
+    private var isIdle = false
+    private var idleHandler: Handler? = null
+    private var idleRunnable: Runnable? = null
+
     fun start(port: Int = 8082) {
         running = true
+        setupTouchDetection()
         Thread(null, {
             try {
                 serverSocket = ServerSocket(port)
@@ -41,6 +54,37 @@ class ComposeInspectorServer(private val activity: Activity) {
     fun stop() {
         running = false
         try { serverSocket?.close() } catch (_: Exception) {}
+        activity.runOnUiThread {
+            idleRunnable?.let { idleHandler?.removeCallbacks(it) }
+        }
+    }
+
+    private fun setupTouchDetection() {
+        activity.runOnUiThread {
+            idleHandler = Handler(Looper.getMainLooper())
+            idleRunnable = Runnable {
+                isIdle = true
+                idleGeneration++
+            }
+
+            val originalCallback = activity.window.callback
+            activity.window.callback = object : Window.Callback by originalCallback {
+                override fun dispatchTouchEvent(event: MotionEvent?): Boolean {
+                    if (event != null) {
+                        onUserTouch()
+                    }
+                    return originalCallback.dispatchTouchEvent(event)
+                }
+            }
+        }
+    }
+
+    private fun onUserTouch() {
+        isIdle = false
+        idleRunnable?.let { r ->
+            idleHandler?.removeCallbacks(r)
+            idleHandler?.postDelayed(r, 1000)
+        }
     }
 
     private fun handleClient(client: Socket) {
@@ -56,6 +100,8 @@ class ComposeInspectorServer(private val activity: Activity) {
                 }
 
                 val json = when {
+                    requestLine.contains("/interaction-status") ->
+                        """{"idle":$isIdle,"generation":$idleGeneration}"""
                     requestLine.contains("/compose-tree") -> getComposeTreeOnUiThread()
                     else -> """{"error":"unknown endpoint"}"""
                 }
