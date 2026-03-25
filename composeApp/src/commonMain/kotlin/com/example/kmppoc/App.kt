@@ -47,6 +47,9 @@ private fun UiComponent.typeName(): String = when (this) {
     is UiComponent.Quote -> "Quote"
     is UiComponent.TaskProgress -> "TaskProgress"
     is UiComponent.ChipGroup -> "ChipGroup"
+    is UiComponent.Label -> "Label"
+    is UiComponent.UiButton -> "UiButton"
+    is UiComponent.UiCheckbox -> "UiCheckbox"
 }
 
 // ── Wrapper composable ──
@@ -67,6 +70,9 @@ fun ComponentCard(component: UiComponent) {
             is UiComponent.Quote -> QuoteCard(component)
             is UiComponent.TaskProgress -> TaskProgressCard(component)
             is UiComponent.ChipGroup -> ChipGroupCard(component)
+            is UiComponent.Label -> {}
+            is UiComponent.UiButton -> {}
+            is UiComponent.UiCheckbox -> {}
         }
     }
 }

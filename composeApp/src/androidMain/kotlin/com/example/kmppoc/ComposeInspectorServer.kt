@@ -83,7 +83,7 @@ class ComposeInspectorServer(private val activity: Activity) {
         isIdle = false
         idleRunnable?.let { r ->
             idleHandler?.removeCallbacks(r)
-            idleHandler?.postDelayed(r, 1000)
+            idleHandler?.postDelayed(r, 500)
         }
     }
 

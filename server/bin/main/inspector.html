@@ -45,6 +45,45 @@
         .toolbar .status.err { color: #ef5350; }
         .strategy-label { font-size: 12px; color: #888; }
 
+        /* Event filter bar */
+        .filter-bar {
+            width: 100%;
+            padding: 6px 24px;
+            background: #131a2e;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid #0f3460;
+            flex-shrink: 0;
+            min-height: 34px;
+        }
+        .filter-bar-label {
+            font-size: 11px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            flex-shrink: 0;
+        }
+        .filter-tag {
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border: 2px solid transparent;
+            transition: all 0.15s;
+            user-select: none;
+            position: relative;
+        }
+        .filter-tag:hover { opacity: 0.85; }
+        .filter-tag .filter-count {
+            font-size: 9px;
+            opacity: 0.7;
+            margin-left: 4px;
+        }
+
         .content {
             display: flex;
             flex: 1;
@@ -52,6 +91,7 @@
             gap: 16px;
             overflow: hidden;
             min-height: 0;
+            position: relative;
         }
 
         /* LEFT: device frame */
@@ -66,7 +106,7 @@
         }
         .device-frame img {
             display: block;
-            height: calc(100vh - 80px);
+            height: calc(100vh - 116px);
             width: auto;
         }
         .overlay {
@@ -88,16 +128,8 @@
         }
         .element-rect.selected {
             background: rgba(33, 150, 243, 0.25);
-            outline: 2px solid #2196f3;
-            z-index: 11;
-        }
-        .element-rect.has-analytics {
-            outline: 2px dashed #ff9800 !important;
-            background: rgba(255, 152, 0, 0.10);
-        }
-        .element-rect.has-analytics.selected {
             outline: 2px solid #2196f3 !important;
-            background: rgba(33, 150, 243, 0.25);
+            z-index: 11;
         }
 
         /* MIDDLE: element list */
@@ -167,10 +199,14 @@
         .el-item .el-size { color: #666; margin-left: auto; flex-shrink: 0; }
         .el-item .tree-indent { color: #444; flex-shrink: 0; white-space: pre; }
         .el-item .tree-toggle { flex-shrink: 0; width: 14px; cursor: pointer; color: #888; user-select: none; }
-        .el-item.has-analytics { border-left: 3px solid #ff9800; }
-        .el-item .el-analytics-badge {
+        .el-item .el-event-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            display: inline-block;
+        }
+        .el-item .el-event-badge {
             font-size: 9px;
-            background: #ff9800;
             color: #000;
             padding: 1px 5px;
             border-radius: 3px;
@@ -279,7 +315,7 @@
             font-size: 13px;
             pointer-events: none;
             z-index: 1000;
-            max-width: 320px;
+            max-width: 360px;
             display: none;
             box-shadow: 0 4px 20px rgba(0,0,0,0.5);
         }
@@ -288,6 +324,67 @@
         .tooltip .tt-text { color: #ffab40; margin-top: 2px; }
         .tooltip .tt-id { color: #ce93d8; margin-top: 2px; font-size: 12px; }
         .tooltip .tt-role { color: #a5d6a7; margin-top: 2px; font-size: 12px; }
+        .tooltip .tt-event { margin-top: 4px; padding: 4px 6px; border-radius: 4px; font-size: 11px; font-family: monospace; }
+
+        /* Event annotation cards (connected by lines from components) */
+        .annotation-layer {
+            position: relative;
+            flex-shrink: 0;
+            width: 0;
+            min-width: 0;
+            align-self: flex-start;
+            overflow: visible;
+            transition: width 0.2s, min-width 0.2s;
+        }
+        .annotation-layer.has-cards {
+            width: 280px;
+            min-width: 280px;
+            overflow-y: auto;
+            padding: 4px 0;
+        }
+        .annotation-connector {
+            position: absolute;
+            pointer-events: none;
+        }
+        .annotation-card {
+            position: relative;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            padding: 12px 14px;
+            width: 260px;
+            pointer-events: all;
+            cursor: pointer;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            z-index: 20;
+            margin-bottom: 8px;
+        }
+        .annotation-card:hover {
+            border-color: #f97316;
+            box-shadow: 0 8px 24px rgba(249,115,22,0.15);
+        }
+        .annotation-card-type {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+        .annotation-card-component {
+            font-size: 13px;
+            font-weight: 600;
+            color: #e6edf3;
+            margin-bottom: 6px;
+        }
+        .annotation-card-event {
+            font-size: 11px;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            padding: 4px 8px;
+            border-radius: 6px;
+            margin-bottom: 4px;
+        }
+        .annotation-card-event:last-child { margin-bottom: 0; }
 
         .loading {
             display: flex;
@@ -318,12 +415,21 @@
             <option value="uiautomator">UI Automator</option>
         </select>
         <button onclick="refresh()" id="btnRefresh">Refresh</button>
-        <button onclick="toggleBounds()" id="btnBounds" class="active">Bounds</button>
+        <button onclick="toggleBounds()" id="btnBounds" class="active">Component Bounds</button>
+        <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;user-select:none">
+            <input type="checkbox" id="allBounds" style="cursor:pointer" />
+            All boundaries
+        </label>
+        <button onclick="toggleTree()" id="btnTree">Tree</button>
         <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;user-select:none">
             <input type="checkbox" id="autoRefresh" checked style="cursor:pointer" />
             Auto-refresh
         </label>
         <span class="status" id="status">Connecting...</span>
+    </div>
+    <div class="filter-bar" id="filterBar">
+        <span class="filter-bar-label">Events:</span>
+        <span id="filterTags" style="display:flex;gap:6px;flex-wrap:wrap"></span>
     </div>
     <div class="content">
         <!-- LEFT: device screen -->
@@ -335,8 +441,11 @@
             <img id="screenshot" style="display:none" />
             <div class="overlay" id="overlay"></div>
         </div>
+        <!-- Annotation cards + connector lines -->
+        <div class="annotation-layer" id="annotationLayer"></div>
+        <svg id="connectorSvg" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:15;overflow:visible"></svg>
         <!-- MIDDLE: element list -->
-        <div class="element-list-panel">
+        <div class="element-list-panel" id="treePanel" style="display:none">
             <div class="element-list-header">
                 <h2>Elements</h2>
                 <span id="elementCount">0 elements</span>
@@ -356,11 +465,110 @@
     let hierarchy = [];
     let deviceWidth = 1080;
     let deviceHeight = 2400;
-    let boundsVisible = true;
+    let boundsVisible = false;
+    let componentBoundsVisible = true;
     let selectedIndex = -1;
     let hoveredIndex = -1;
-    let componentsData = null; // cached /api/components response
-    let analyticsComponentIds = new Set(); // component IDs that have analytics events
+    let componentsData = null;
+
+    // ── Event filter system ──
+    const EVENT_TYPE_COLORS = {
+        'analytics': { color: '#ff9800', bg: 'rgba(255,152,0,0.12)', label: 'Analytics' },
+        'deeplink':  { color: '#4dd0e1', bg: 'rgba(77,208,225,0.12)', label: 'Deeplink' },
+    };
+    let activeEventFilters = new Set();
+    // eventType -> Set of root component IDs that contain that event (recursively)
+    let eventTypeIndex = {};
+
+    function collectEventsRecursive(component) {
+        let events = [...(component.events || [])];
+        if (component.children && component.children.length > 0) {
+            component.children.forEach(child => {
+                events = events.concat(collectEventsRecursive(child));
+            });
+        }
+        return events;
+    }
+
+    function buildEventTypeIndex(components) {
+        const index = {};
+        if (!components) return index;
+        components.forEach(comp => {
+            const allEvents = collectEventsRecursive(comp);
+            allEvents.forEach(ev => {
+                const t = ev.eventType;
+                if (!index[t]) index[t] = new Set();
+                index[t].add(comp.id);
+            });
+        });
+        return index;
+    }
+
+    function getComponentEvents(compId, eventType) {
+        if (!componentsData) return [];
+        const comp = componentsData.find(c => c.id === compId);
+        if (!comp) return [];
+        const all = collectEventsRecursive(comp);
+        return eventType ? all.filter(e => e.eventType === eventType) : all;
+    }
+
+    function getMatchingFilterColor(compId) {
+        for (const t of activeEventFilters) {
+            if (eventTypeIndex[t] && eventTypeIndex[t].has(compId)) {
+                return EVENT_TYPE_COLORS[t] || { color: '#888', bg: 'rgba(136,136,136,0.12)' };
+            }
+        }
+        return null;
+    }
+
+    function componentMatchesAnyFilter(compId) {
+        if (activeEventFilters.size === 0) return false;
+        for (const t of activeEventFilters) {
+            if (eventTypeIndex[t] && eventTypeIndex[t].has(compId)) return true;
+        }
+        return false;
+    }
+
+    function getComponentEventTypes(compId) {
+        const types = [];
+        for (const [t, ids] of Object.entries(eventTypeIndex)) {
+            if (ids.has(compId)) types.push(t);
+        }
+        return types;
+    }
+
+    function renderFilterTags() {
+        const container = document.getElementById('filterTags');
+        container.innerHTML = '';
+        const types = Object.keys(eventTypeIndex);
+        if (types.length === 0) {
+            container.innerHTML = '<span style="font-size:11px;color:#555">No events found</span>';
+            return;
+        }
+        types.forEach(t => {
+            const meta = EVENT_TYPE_COLORS[t] || { color: '#888', bg: 'rgba(136,136,136,0.12)', label: t };
+            const count = eventTypeIndex[t] ? eventTypeIndex[t].size : 0;
+            const tag = document.createElement('span');
+            tag.className = 'filter-tag';
+            const isActive = activeEventFilters.has(t);
+            tag.style.background = isActive ? meta.color : 'transparent';
+            tag.style.color = isActive ? '#000' : meta.color;
+            tag.style.borderColor = meta.color;
+            tag.innerHTML = meta.label + '<span class="filter-count">' + count + '</span>';
+            tag.addEventListener('click', () => {
+                if (activeEventFilters.has(t)) {
+                    activeEventFilters.clear();
+                } else {
+                    activeEventFilters.clear();
+                    activeEventFilters.add(t);
+                }
+                renderFilterTags();
+                renderOverlay();
+                renderElementList();
+            });
+            container.appendChild(tag);
+        });
+    }
 
     function escapeHtml(str) {
         return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -430,14 +638,8 @@
                 fetch('/api/components').then(r => r.ok ? r.json() : null).catch(() => null)
             ]);
             componentsData = compData;
-            analyticsComponentIds = new Set();
-            if (compData && Array.isArray(compData)) {
-                compData.forEach(c => {
-                    if (c.events && c.events.some(e => e.eventType === 'analytics')) {
-                        analyticsComponentIds.add(c.id);
-                    }
-                });
-            }
+            eventTypeIndex = buildEventTypeIndex(compData);
+            renderFilterTags();
 
             if (rawData && rawData.error) throw new Error(rawData.error);
 
@@ -480,6 +682,8 @@
 
         hierarchy.forEach((el, i) => {
             if (el.width <= 0 || el.height <= 0) return;
+            // When all boundaries disabled, only allow selecting component roots
+            if (!boundsVisible && !el.isComponentRoot) return;
             const l = el.bounds.left * scaleX;
             const t = el.bounds.top * scaleY;
             const r = el.bounds.right * scaleX;
@@ -514,9 +718,16 @@
             rect.style.height = (el.height * scaleY) + 'px';
             rect.dataset.index = i;
 
-            if (el.componentId && analyticsComponentIds.has(el.componentId) && el.isComponentRoot) {
-                rect.classList.add('has-analytics');
+            // Apply event filter highlights
+            const filterMatch = el.isComponentRoot && el.componentId ? getMatchingFilterColor(el.componentId) : null;
+            if (filterMatch) {
+                rect.style.outline = '3px solid ' + filterMatch.color;
+                rect.style.background = filterMatch.bg;
+                rect.dataset.filterColor = filterMatch.color;
+                rect.dataset.filterBg = filterMatch.bg;
             } else if (boundsVisible) {
+                rect.style.outline = '1px solid rgba(76,175,80,0.35)';
+            } else if (componentBoundsVisible && el.isComponentRoot) {
                 rect.style.outline = '1px solid rgba(76,175,80,0.35)';
             }
             if (i === selectedIndex) rect.classList.add('selected');
@@ -526,10 +737,9 @@
 
         // Single event handlers on overlay for hit-testing
         overlay.onmousemove = (e) => {
-            const rect = overlay.getBoundingClientRect();
-            const idx = hitTest(e.clientX - rect.left, e.clientY - rect.top);
+            const oRect = overlay.getBoundingClientRect();
+            const idx = hitTest(e.clientX - oRect.left, e.clientY - oRect.top);
             if (idx !== hoveredIndex) {
-                // Un-hover previous
                 if (hoveredIndex >= 0) {
                     const prev = overlay.querySelector('[data-index="' + hoveredIndex + '"]');
                     if (prev && !prev.classList.contains('selected')) prev.classList.remove('hovered');
@@ -557,10 +767,133 @@
         };
 
         overlay.onclick = (e) => {
-            const rect = overlay.getBoundingClientRect();
-            const idx = hitTest(e.clientX - rect.left, e.clientY - rect.top);
-            if (idx >= 0) selectElement(idx);
+            const oRect = overlay.getBoundingClientRect();
+            const idx = hitTest(e.clientX - oRect.left, e.clientY - oRect.top);
+            if (idx >= 0) {
+                if (idx === selectedIndex) {
+                    deselectElement();
+                } else {
+                    selectElement(idx);
+                }
+            }
         };
+
+        // Render annotation cards after overlay is ready
+        setTimeout(renderAnnotations, 0);
+    }
+
+    function renderAnnotations() {
+        const layer = document.getElementById('annotationLayer');
+        const svg = document.getElementById('connectorSvg');
+        layer.innerHTML = '';
+        svg.innerHTML = '';
+        layer.classList.remove('has-cards');
+
+        if (activeEventFilters.size === 0) return;
+
+        const deviceFrame = document.getElementById('deviceFrame');
+        const contentEl = document.querySelector('.content');
+        const img = document.getElementById('screenshot');
+        if (!img.clientWidth || !img.clientHeight) return;
+
+        const scaleX = img.clientWidth / deviceWidth;
+        const scaleY = img.clientHeight / deviceHeight;
+        const contentRect = contentEl.getBoundingClientRect();
+        const frameRect = deviceFrame.getBoundingClientRect();
+
+        // Collect matching components with their positions
+        const annotations = [];
+        const activeType = activeEventFilters.values().next().value;
+        const meta = EVENT_TYPE_COLORS[activeType] || { color: '#888', bg: 'rgba(136,136,136,0.12)', label: activeType };
+
+        hierarchy.forEach((el, i) => {
+            if (!el.isComponentRoot || !el.componentId) return;
+            if (!componentMatchesAnyFilter(el.componentId)) return;
+
+            const centerY = (el.bounds.top + el.bounds.bottom) / 2 * scaleY;
+            const rightX = el.bounds.right * scaleX;
+            const evts = getComponentEvents(el.componentId, activeType);
+
+            annotations.push({
+                index: i,
+                el: el,
+                centerY: centerY,
+                rightX: rightX,
+                events: evts,
+                componentType: el.componentType || el.displayName
+            });
+        });
+
+        if (annotations.length === 0) {
+            layer.classList.remove('has-cards');
+            return;
+        }
+
+        layer.classList.add('has-cards');
+
+        // Sort by Y position
+        annotations.sort((a, b) => a.centerY - b.centerY);
+
+        annotations.forEach((ann, idx) => {
+            const card = document.createElement('div');
+            card.className = 'annotation-card';
+            card.style.borderLeft = '3px solid ' + meta.color;
+
+            let html = '<div class="annotation-card-type" style="color:' + meta.color + '">' + meta.label + '</div>';
+            html += '<div class="annotation-card-component">' + escapeHtml(ann.componentType) + ' <span style="color:#8b949e;font-size:11px;font-weight:400">' + escapeHtml(ann.el.componentId) + '</span></div>';
+
+            ann.events.forEach(ev => {
+                html += '<div class="annotation-card-event" style="background:' + meta.color + '15;border-left:2px solid ' + meta.color + ';color:' + meta.color + '">';
+                if (ev.eventType === 'analytics') {
+                    html += escapeHtml(ev.eventName);
+                    if (ev.params && Object.keys(ev.params).length > 0) {
+                        html += ' <span style="opacity:0.6;color:#8b949e">(' + Object.entries(ev.params).map(([k,v]) => k+'='+v).join(', ') + ')</span>';
+                    }
+                } else if (ev.eventType === 'deeplink') {
+                    html += escapeHtml(ev.url);
+                }
+                html += '</div>';
+            });
+
+            card.innerHTML = html;
+            card.addEventListener('click', () => selectElement(ann.index));
+            layer.appendChild(card);
+        });
+
+        // Draw SVG connectors after cards are in the DOM
+        requestAnimationFrame(() => {
+            const cards = layer.querySelectorAll('.annotation-card');
+            const layerRect = layer.getBoundingClientRect();
+
+            annotations.forEach((ann, idx) => {
+                const cardEl = cards[idx];
+                if (!cardEl) return;
+                const cardRect = cardEl.getBoundingClientRect();
+
+                const fromX = frameRect.left - contentRect.left + ann.rightX;
+                const fromY = frameRect.top - contentRect.top + ann.centerY;
+                const toX = layerRect.left - contentRect.left;
+                const toY = cardRect.top - contentRect.top + Math.min(cardRect.height / 2, 20);
+
+                const midX = (fromX + toX) / 2;
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                path.setAttribute('d', 'M' + fromX + ',' + fromY + ' C' + midX + ',' + fromY + ' ' + midX + ',' + toY + ' ' + toX + ',' + toY);
+                path.setAttribute('stroke', meta.color);
+                path.setAttribute('stroke-width', '1.5');
+                path.setAttribute('fill', 'none');
+                path.setAttribute('stroke-opacity', '0.6');
+                svg.appendChild(path);
+
+                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                circle.setAttribute('cx', fromX);
+                circle.setAttribute('cy', fromY);
+                circle.setAttribute('r', '3');
+                circle.setAttribute('fill', meta.color);
+                circle.setAttribute('fill-opacity', '0.8');
+                svg.appendChild(circle);
+            });
+        });
+
     }
 
     function showTooltipFor(e, el) {
@@ -570,9 +903,29 @@
         if (el.text) html += '<div class="tt-text">"' + el.text.substring(0, 60) + '"</div>';
         if (el._strategy === 'compose') {
             if (el.role && el.role !== el.displayName) html += '<div class="tt-role">Role: ' + el.role + '</div>';
-            if (el.testTag) html += '<div class="tt-id">tag: ' + el.testTag + '</div>';
         } else {
             if (el.resourceId) html += '<div class="tt-id">' + el.resourceId.split('/').pop() + '</div>';
+        }
+        // Show event preview if component has events matching active filters
+        if (el.componentId && activeEventFilters.size > 0) {
+            for (const t of activeEventFilters) {
+                const evts = getComponentEvents(el.componentId, t);
+                if (evts.length > 0) {
+                    const meta = EVENT_TYPE_COLORS[t] || { color: '#888', label: t };
+                    evts.forEach(ev => {
+                        html += '<div class="tt-event" style="background:' + meta.color + '22;border-left:3px solid ' + meta.color + ';color:' + meta.color + '">';
+                        if (ev.eventType === 'analytics') {
+                            html += '<b>' + meta.label + ':</b> ' + escapeHtml(ev.eventName);
+                            if (ev.params && Object.keys(ev.params).length > 0) {
+                                html += ' <span style="opacity:0.7">(' + Object.entries(ev.params).map(([k,v]) => k+'='+v).join(', ') + ')</span>';
+                            }
+                        } else if (ev.eventType === 'deeplink') {
+                            html += '<b>' + meta.label + ':</b> ' + escapeHtml(ev.url);
+                        }
+                        html += '</div>';
+                    });
+                }
+            }
         }
         tt.innerHTML = html;
         tt.style.display = 'block';
@@ -583,14 +936,25 @@
         const tt = document.getElementById('tooltip');
         let x = e.clientX + 15;
         let y = e.clientY + 15;
-        if (x + 320 > window.innerWidth) x = e.clientX - 320 - 15;
-        if (y + 150 > window.innerHeight) y = e.clientY - 150 - 15;
+        if (x + 360 > window.innerWidth) x = e.clientX - 360 - 15;
+        if (y + 200 > window.innerHeight) y = e.clientY - 200 - 15;
         tt.style.left = x + 'px';
         tt.style.top = y + 'px';
     }
 
     function hideTooltip() {
         document.getElementById('tooltip').style.display = 'none';
+    }
+
+    function deselectElement() {
+        selectedIndex = -1;
+        document.querySelectorAll('.element-rect').forEach(r => {
+            r.classList.remove('selected');
+            r.classList.remove('hovered');
+        });
+        document.querySelectorAll('.el-item').forEach(r => r.classList.remove('active'));
+        document.getElementById('elementInfo').innerHTML = '<div class="placeholder">Hover over elements on the screen to inspect them. Click to pin selection.</div>';
+        renderOverlay();
     }
 
     function selectElement(index) {
@@ -650,16 +1014,17 @@
             html += '</div>';
         }
 
-        // Show SDUI JSON and events for the component that rendered this element
+        // Show events and JSON for the component
         if (componentsData && el.componentId) {
             const comp = componentsData.find(c => c.id === el.componentId);
             if (comp) {
-                if (comp.events && comp.events.length > 0) {
-                    html += '<div class="json-section"><h3 style="color:#ff9800">Events (' + comp.events.length + ')</h3>';
-                    comp.events.forEach(ev => {
-                        const typeColor = ev.eventType === 'analytics' ? '#ff9800' : '#4dd0e1';
-                        html += '<div style="margin-bottom:6px;padding:8px;background:#0d1117;border-radius:6px;border-left:3px solid ' + typeColor + '">';
-                        html += '<div style="font-size:11px;color:' + typeColor + ';font-weight:700;text-transform:uppercase;margin-bottom:4px">' + ev.eventType + '</div>';
+                const allEvents = collectEventsRecursive(comp);
+                if (allEvents.length > 0) {
+                    html += '<div class="json-section"><h3 style="color:#ff9800">Events (' + allEvents.length + ')</h3>';
+                    allEvents.forEach(ev => {
+                        const meta = EVENT_TYPE_COLORS[ev.eventType] || { color: '#888', label: ev.eventType };
+                        html += '<div style="margin-bottom:6px;padding:8px;background:#0d1117;border-radius:6px;border-left:3px solid ' + meta.color + '">';
+                        html += '<div style="font-size:11px;color:' + meta.color + ';font-weight:700;text-transform:uppercase;margin-bottom:4px">' + meta.label + '</div>';
                         if (ev.eventType === 'analytics') {
                             html += '<div style="font-size:12px;font-family:monospace;color:#a5d6a7">' + escapeHtml(ev.eventName) + '</div>';
                             if (ev.params && Object.keys(ev.params).length > 0) {
@@ -708,11 +1073,9 @@
     }
 
     function renderComposeTree(list) {
-        // Build lookup: semantics id -> array index
         const idToIndex = {};
         hierarchy.forEach((el, i) => { idToIndex[el.id] = i; });
 
-        // Find roots (parentId < 0 or parent not in list)
         const roots = [];
         hierarchy.forEach((el, i) => {
             if (el.parentId == null || el.parentId < 0 || idToIndex[el.parentId] === undefined) {
@@ -746,22 +1109,44 @@
         const item = document.createElement('div');
         item.className = 'el-item';
         if (el.isComponentRoot) item.classList.add('component-root');
-        const hasAnalytics = el.isComponentRoot && el.componentId && analyticsComponentIds.has(el.componentId);
-        if (hasAnalytics) item.classList.add('has-analytics');
+
+        // Determine event types present on this component
+        const compEventTypes = (el.isComponentRoot && el.componentId) ? getComponentEventTypes(el.componentId) : [];
+        const matchesFilter = el.isComponentRoot && el.componentId && componentMatchesAnyFilter(el.componentId);
+
+        if (matchesFilter) {
+            const fc = getMatchingFilterColor(el.componentId);
+            if (fc) item.style.borderLeft = '3px solid ' + fc.color;
+        }
+
         item.dataset.index = i;
         item.dataset.search = [el.displayName, el.text, el.role, el.testTag || '', el.resourceId || '', el.componentType || ''].join(' ').toLowerCase();
 
         let html = '';
         if (depth > 0) {
-            html += '<span class="tree-indent">' + '│ '.repeat(depth - 1) + '├ ' + '</span>';
+            html += '<span class="tree-indent">' + '\u2502 '.repeat(depth - 1) + '\u251c ' + '</span>';
         }
         if (hasChildren) {
-            html += '<span class="tree-toggle">' + (isCollapsed ? '▶' : '▼') + '</span>';
+            html += '<span class="tree-toggle">' + (isCollapsed ? '\u25b6' : '\u25bc') + '</span>';
         } else if (depth > 0) {
             html += '<span class="tree-toggle"> </span>';
         }
         html += '<span class="el-class">' + el.displayName + '</span>';
-        if (hasAnalytics) html += '<span class="el-analytics-badge">analytics</span>';
+
+        // Show colored dots for each event type this component has
+        if (el.isComponentRoot && compEventTypes.length > 0) {
+            compEventTypes.forEach(t => {
+                const meta = EVENT_TYPE_COLORS[t] || { color: '#888', label: t };
+                html += '<span class="el-event-dot" style="background:' + meta.color + '" title="' + meta.label + '"></span>';
+            });
+        }
+
+        // Show badge when filter is active and this component matches
+        if (matchesFilter) {
+            const fc = getMatchingFilterColor(el.componentId);
+            if (fc) html += '<span class="el-event-badge" style="background:' + fc.color + '">' + activeEventFilters.values().next().value + '</span>';
+        }
+
         if (el.text) {
             html += '<span class="el-text">"' + el.text.substring(0, 25) + '"</span>';
         } else if (el._strategy === 'compose' && el.testTag) {
@@ -775,7 +1160,6 @@
         if (i === selectedIndex) item.classList.add('active');
 
         item.addEventListener('click', (e) => {
-            // Check if toggle was clicked
             if (e.target.classList.contains('tree-toggle') && hasChildren) {
                 if (collapsedNodes.has(el.id)) {
                     collapsedNodes.delete(el.id);
@@ -785,7 +1169,11 @@
                 renderElementList();
                 return;
             }
-            selectElement(i);
+            if (i === selectedIndex) {
+                deselectElement();
+            } else {
+                selectElement(i);
+            }
         });
         item.addEventListener('mouseenter', () => highlightOverlayRect(i, true));
         item.addEventListener('mouseleave', () => highlightOverlayRect(i, false));
@@ -800,8 +1188,16 @@
             rect.style.outline = '2px solid #ff9800';
             rect.style.background = 'rgba(255,152,0,0.2)';
         } else {
-            rect.style.outline = boundsVisible ? '1px solid rgba(76,175,80,0.35)' : 'none';
-            rect.style.background = 'transparent';
+            // Restore filter highlight or default
+            if (rect.dataset.filterColor) {
+                rect.style.outline = '2px solid ' + rect.dataset.filterColor;
+                rect.style.background = rect.dataset.filterBg || 'transparent';
+            } else {
+                const el = hierarchy[i];
+                const showBound = boundsVisible || (componentBoundsVisible && el && el.isComponentRoot);
+                rect.style.outline = showBound ? '1px solid rgba(76,175,80,0.35)' : 'none';
+                rect.style.background = 'transparent';
+            }
         }
     }
 
@@ -813,17 +1209,26 @@
     }
 
     function toggleBounds() {
-        boundsVisible = !boundsVisible;
-        document.getElementById('btnBounds').classList.toggle('active', boundsVisible);
-        document.querySelectorAll('.element-rect').forEach(r => {
-            if (!r.classList.contains('selected') && !r.classList.contains('hovered')) {
-                r.style.outline = boundsVisible ? '1px solid rgba(76,175,80,0.35)' : 'none';
-            }
-        });
+        componentBoundsVisible = !componentBoundsVisible;
+        document.getElementById('btnBounds').classList.toggle('active', componentBoundsVisible);
+        renderOverlay();
     }
 
+    function toggleTree() {
+        const panel = document.getElementById('treePanel');
+        const btn = document.getElementById('btnTree');
+        const visible = panel.style.display !== 'none';
+        panel.style.display = visible ? 'none' : '';
+        btn.classList.toggle('active', !visible);
+    }
+
+    document.getElementById('allBounds').addEventListener('change', (e) => {
+        boundsVisible = e.target.checked;
+        renderOverlay();
+    });
+
     let resizeTimer;
-    window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(renderOverlay, 100); });
+    window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => { renderOverlay(); }, 100); });
 
     // ── Auto-refresh on interaction idle ──
     let lastRefreshedGeneration = -1;
