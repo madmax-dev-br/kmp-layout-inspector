@@ -5,61 +5,110 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KMP Layout Inspector</title>
     <style>
+        :root {
+            --bg: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-tertiary: #1c2333;
+            --bg-card: #21262d;
+            --bg-hover: #30363d;
+            --accent: #f97316;
+            --accent-hover: #fb923c;
+            --accent-glow: rgba(249, 115, 22, 0.15);
+            --text: #e6edf3;
+            --text-secondary: #8b949e;
+            --text-muted: #484f58;
+            --success: #3fb950;
+            --success-bg: rgba(63, 185, 80, 0.1);
+            --warning: #d29922;
+            --error: #f85149;
+            --error-bg: rgba(248, 81, 73, 0.1);
+            --info: #58a6ff;
+            --info-bg: rgba(88, 166, 255, 0.1);
+            --border: #30363d;
+            --border-light: #21262d;
+            --radius: 8px;
+            --radius-lg: 12px;
+            --shadow: 0 2px 8px rgba(0,0,0,0.3);
+            --shadow-lg: 0 8px 24px rgba(0,0,0,0.4);
+            --transition: 0.2s ease;
+        }
+
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #1a1a2e;
-            color: #e0e0e0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
             display: flex;
             flex-direction: column;
             height: 100vh;
             overflow: hidden;
         }
+
+        /* ===== Scrollbar ===== */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+        /* ===== Toolbar ===== */
         .toolbar {
             width: 100%;
-            padding: 10px 24px;
-            background: #16213e;
+            padding: 12px 20px;
+            background: var(--bg-secondary);
             display: flex;
             align-items: center;
             gap: 12px;
-            border-bottom: 1px solid #0f3460;
+            border-bottom: 1px solid var(--border);
             flex-shrink: 0;
         }
-        .toolbar h1 { font-size: 16px; font-weight: 600; letter-spacing: 0.5px; }
+        .toolbar h1 {
+            font-size: 16px;
+            font-weight: 600;
+            letter-spacing: -0.3px;
+            color: var(--text);
+        }
         .toolbar button, .toolbar select {
             padding: 6px 14px;
-            border: 1px solid #0f3460;
-            border-radius: 6px;
-            background: #0f3460;
-            color: #e0e0e0;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            background: var(--bg);
+            color: var(--text-secondary);
             cursor: pointer;
             font-size: 13px;
-            transition: background 0.2s;
+            transition: all var(--transition);
         }
-        .toolbar button:hover, .toolbar select:hover { background: #533483; border-color: #533483; }
-        .toolbar button.active { background: #533483; border-color: #7c4dff; }
+        .toolbar button:hover, .toolbar select:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: var(--accent-glow);
+        }
+        .toolbar button.active {
+            background: var(--accent-glow);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
         .toolbar select { appearance: auto; }
-        .toolbar select option { background: #16213e; }
-        .toolbar .status { margin-left: auto; font-size: 12px; color: #888; }
-        .toolbar .status.ok { color: #4caf50; }
-        .toolbar .status.err { color: #ef5350; }
-        .strategy-label { font-size: 12px; color: #888; }
+        .toolbar select option { background: var(--bg-secondary); }
+        .toolbar .status { margin-left: auto; font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+        .toolbar .status.ok { color: var(--success); }
+        .toolbar .status.err { color: var(--error); }
+        .strategy-label { font-size: 12px; color: var(--text-muted); }
 
-        /* Event filter bar */
+        /* ===== Filter bar ===== */
         .filter-bar {
             width: 100%;
-            padding: 6px 24px;
-            background: #131a2e;
+            padding: 6px 20px;
+            background: var(--bg);
             display: flex;
             align-items: center;
             gap: 8px;
-            border-bottom: 1px solid #0f3460;
+            border-bottom: 1px solid var(--border);
             flex-shrink: 0;
             min-height: 34px;
         }
         .filter-bar-label {
             font-size: 11px;
-            color: #666;
+            color: var(--text-muted);
             text-transform: uppercase;
             letter-spacing: 1px;
             flex-shrink: 0;
@@ -84,6 +133,7 @@
             margin-left: 4px;
         }
 
+        /* ===== Content ===== */
         .content {
             display: flex;
             flex: 1;
@@ -94,15 +144,16 @@
             position: relative;
         }
 
-        /* LEFT: device frame */
+        /* ===== Device Frame ===== */
         .device-frame {
             position: relative;
-            border: 2px solid #333;
-            border-radius: 12px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
             overflow: hidden;
             flex-shrink: 0;
             background: #000;
             align-self: flex-start;
+            box-shadow: var(--shadow);
         }
         .device-frame img {
             display: block;
@@ -122,21 +173,22 @@
             transition: background 0.05s, outline-color 0.05s;
         }
         .element-rect.hovered {
-            background: rgba(76, 175, 80, 0.25);
-            outline: 2px solid #4caf50;
+            background: rgba(63, 185, 80, 0.2);
+            outline: 2px solid var(--success);
             z-index: 10;
         }
         .element-rect.selected {
-            background: rgba(33, 150, 243, 0.25);
-            outline: 2px solid #2196f3 !important;
+            background: rgba(88, 166, 255, 0.2);
+            outline: 2px solid var(--info) !important;
             z-index: 11;
         }
 
-        /* MIDDLE: element list */
+        /* ===== Element Tree Panel ===== */
         .element-list-panel {
-            background: #16213e;
-            border-radius: 10px;
-            padding: 16px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 0;
             width: 300px;
             flex-shrink: 0;
             display: flex;
@@ -148,57 +200,67 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 8px;
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border);
             flex-shrink: 0;
         }
         .element-list-header h2 {
-            font-size: 14px;
-            color: #81d4fa;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 0.5px;
         }
-        .element-list-header span { font-size: 12px; color: #555; }
+        .element-list-header span { font-size: 12px; color: var(--text-muted); }
         .search-box {
-            width: 100%;
-            padding: 6px 10px;
-            border: 1px solid #333;
-            border-radius: 6px;
-            background: #1a1a2e;
-            color: #e0e0e0;
+            width: calc(100% - 16px);
+            margin: 8px;
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            background: var(--bg);
+            color: var(--text);
             font-size: 13px;
-            margin-bottom: 8px;
             outline: none;
             flex-shrink: 0;
+            transition: border-color var(--transition);
         }
-        .search-box:focus { border-color: #4caf50; }
+        .search-box:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
         .element-list {
             flex: 1;
             overflow-y: auto;
             min-height: 0;
+            padding: 4px 8px;
         }
-        .element-list::-webkit-scrollbar { width: 6px; }
-        .element-list::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
         .el-item {
             padding: 6px 8px;
-            border-radius: 4px;
+            border-radius: var(--radius);
             cursor: pointer;
             font-size: 12px;
-            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-family: 'SFMono-Regular', Consolas, 'JetBrains Mono', monospace;
             margin-bottom: 1px;
             display: flex;
             gap: 6px;
             align-items: baseline;
             white-space: nowrap;
             overflow: hidden;
+            transition: background var(--transition);
         }
-        .el-item:hover { background: #1a1a3e; }
-        .el-item.active { background: #0f3460; }
-        .el-item .el-class { color: #4caf50; }
-        .el-item.component-root .el-class { color: #ff9800; font-weight: 700; }
-        .el-item .el-text { color: #ffab40; overflow: hidden; text-overflow: ellipsis; }
-        .el-item .el-size { color: #666; margin-left: auto; flex-shrink: 0; }
-        .el-item .tree-indent { color: #444; flex-shrink: 0; white-space: pre; }
-        .el-item .tree-toggle { flex-shrink: 0; width: 14px; cursor: pointer; color: #888; user-select: none; }
+        .el-item:hover { background: var(--bg-hover); }
+        .el-item.active {
+            background: var(--accent-glow);
+            border: 1px solid var(--accent);
+            margin: 0 -1px 0 -1px;
+        }
+        .el-item .el-class { color: var(--success); }
+        .el-item.component-root .el-class { color: var(--accent); font-weight: 700; }
+        .el-item .el-text { color: var(--warning); overflow: hidden; text-overflow: ellipsis; }
+        .el-item .el-size { color: var(--text-muted); margin-left: auto; flex-shrink: 0; }
+        .el-item .tree-indent { color: var(--text-muted); flex-shrink: 0; white-space: pre; }
+        .el-item .tree-toggle { flex-shrink: 0; width: 14px; cursor: pointer; color: var(--text-secondary); user-select: none; }
         .el-item .el-event-dot {
             width: 8px; height: 8px;
             border-radius: 50%;
@@ -216,26 +278,32 @@
             letter-spacing: 0.5px;
         }
 
-        /* RIGHT: element details */
+        /* ===== Info Panel ===== */
         .info-panel {
             flex: 1;
-            background: #16213e;
-            border-radius: 10px;
-            padding: 16px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 0;
             overflow-y: auto;
             min-width: 280px;
             min-height: 0;
         }
-        .info-panel::-webkit-scrollbar { width: 6px; }
-        .info-panel::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
         .info-panel h2 {
-            font-size: 14px;
-            margin-bottom: 10px;
-            color: #4caf50;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-secondary);
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 0.5px;
+            position: sticky;
+            top: 0;
+            background: var(--bg-secondary);
+            z-index: 1;
         }
-        .info-panel .placeholder { color: #555; font-size: 13px; }
+        .info-panel .placeholder { color: var(--text-muted); font-size: 13px; padding: 16px; }
+        #elementInfo { padding: 16px; }
         .detail-grid {
             display: grid;
             grid-template-columns: auto 1fr;
@@ -243,126 +311,129 @@
             font-size: 13px;
         }
         .detail-label {
-            color: #888;
+            color: var(--text-muted);
             text-transform: uppercase;
             font-size: 11px;
+            font-weight: 600;
             align-self: center;
+            letter-spacing: 0.3px;
         }
         .detail-value {
-            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-family: 'SFMono-Regular', Consolas, 'JetBrains Mono', monospace;
             word-break: break-all;
+            color: var(--text);
         }
         .detail-value.highlight {
-            color: #4caf50;
+            color: var(--accent);
             font-size: 16px;
             font-weight: 600;
         }
         .props-section {
-            margin-top: 10px;
-            padding-top: 10px;
-            border-top: 1px solid #333;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border);
         }
         .props-section h3 {
             font-size: 12px;
-            color: #81d4fa;
+            color: var(--info);
             text-transform: uppercase;
             margin-bottom: 6px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
         }
         .prop-row {
             display: flex;
             gap: 8px;
             font-size: 12px;
             padding: 2px 0;
-            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-family: 'SFMono-Regular', Consolas, 'JetBrains Mono', monospace;
         }
-        .prop-key { color: #ce93d8; flex-shrink: 0; }
-        .prop-val { color: #a5d6a7; word-break: break-all; }
+        .prop-key { color: var(--accent); flex-shrink: 0; }
+        .prop-val { color: var(--success); word-break: break-all; }
 
         .json-section {
             margin-top: 12px;
             padding-top: 12px;
-            border-top: 1px solid #333;
+            border-top: 1px solid var(--border);
         }
         .json-section h3 {
             font-size: 12px;
-            color: #ff9800;
+            color: var(--accent);
             text-transform: uppercase;
             margin-bottom: 8px;
-            letter-spacing: 1px;
+            letter-spacing: 0.5px;
+            font-weight: 600;
         }
         .json-block {
-            background: #0d1117;
-            border: 1px solid #333;
-            border-radius: 8px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
             padding: 12px;
-            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-family: 'SFMono-Regular', Consolas, 'JetBrains Mono', monospace;
             font-size: 12px;
-            color: #a5d6a7;
+            color: var(--success);
             white-space: pre-wrap;
             word-break: break-all;
             max-height: 400px;
             overflow-y: auto;
         }
-        .json-block::-webkit-scrollbar { width: 6px; }
-        .json-block::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
 
+        /* ===== Tooltip ===== */
         .tooltip {
             position: fixed;
-            background: rgba(22, 33, 62, 0.96);
-            border: 1px solid #4caf50;
-            border-radius: 8px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
             padding: 10px 14px;
             font-size: 13px;
             pointer-events: none;
             z-index: 1000;
             max-width: 360px;
             display: none;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            box-shadow: var(--shadow-lg);
         }
-        .tooltip .tt-class { color: #4caf50; font-weight: 700; font-size: 14px; }
-        .tooltip .tt-size { color: #81d4fa; margin-top: 2px; }
-        .tooltip .tt-text { color: #ffab40; margin-top: 2px; }
-        .tooltip .tt-id { color: #ce93d8; margin-top: 2px; font-size: 12px; }
-        .tooltip .tt-role { color: #a5d6a7; margin-top: 2px; font-size: 12px; }
+        .tooltip .tt-class { color: var(--accent); font-weight: 700; font-size: 14px; }
+        .tooltip .tt-size { color: var(--info); margin-top: 2px; }
+        .tooltip .tt-text { color: var(--warning); margin-top: 2px; }
+        .tooltip .tt-id { color: var(--accent); margin-top: 2px; font-size: 12px; }
+        .tooltip .tt-role { color: var(--success); margin-top: 2px; font-size: 12px; }
         .tooltip .tt-event { margin-top: 4px; padding: 4px 6px; border-radius: 4px; font-size: 11px; font-family: monospace; }
 
-        /* Event annotation cards (connected by lines from components) */
+        /* ===== Annotation Cards ===== */
         .annotation-layer {
             position: relative;
             flex-shrink: 0;
             width: 0;
             min-width: 0;
-            align-self: flex-start;
+            align-self: stretch;
             overflow: visible;
             transition: width 0.2s, min-width 0.2s;
         }
         .annotation-layer.has-cards {
             width: 280px;
             min-width: 280px;
-            overflow-y: auto;
-            padding: 4px 0;
         }
         .annotation-connector {
             position: absolute;
             pointer-events: none;
         }
         .annotation-card {
-            position: relative;
-            background: #0d1117;
-            border: 1px solid #30363d;
-            border-radius: 12px;
+            position: absolute;
+            left: 10px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
             padding: 12px 14px;
             width: 260px;
             pointer-events: all;
             cursor: pointer;
-            transition: border-color 0.2s, box-shadow 0.2s;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            transition: border-color var(--transition), box-shadow var(--transition);
+            box-shadow: var(--shadow);
             z-index: 20;
-            margin-bottom: 8px;
         }
         .annotation-card:hover {
-            border-color: #f97316;
-            box-shadow: 0 8px 24px rgba(249,115,22,0.15);
+            border-color: var(--accent);
+            box-shadow: var(--shadow-lg);
         }
         .annotation-card-type {
             font-size: 10px;
@@ -374,18 +445,19 @@
         .annotation-card-component {
             font-size: 13px;
             font-weight: 600;
-            color: #e6edf3;
+            color: var(--text);
             margin-bottom: 6px;
         }
         .annotation-card-event {
             font-size: 11px;
-            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-family: 'SFMono-Regular', Consolas, 'JetBrains Mono', monospace;
             padding: 4px 8px;
             border-radius: 6px;
             margin-bottom: 4px;
         }
         .annotation-card-event:last-child { margin-bottom: 0; }
 
+        /* ===== Loading ===== */
         .loading {
             display: flex;
             flex-direction: column;
@@ -393,12 +465,12 @@
             justify-content: center;
             height: 60vh;
             width: 300px;
-            color: #555;
+            color: var(--text-muted);
         }
         .spinner {
             width: 40px; height: 40px;
-            border: 3px solid #333;
-            border-top-color: #4caf50;
+            border: 3px solid var(--border);
+            border-top-color: var(--accent);
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
             margin-bottom: 16px;
@@ -417,12 +489,12 @@
         <button onclick="refresh()" id="btnRefresh">Refresh</button>
         <button onclick="toggleBounds()" id="btnBounds" class="active">Component Bounds</button>
         <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;user-select:none">
-            <input type="checkbox" id="allBounds" style="cursor:pointer" />
+            <input type="checkbox" id="allBounds" style="cursor:pointer;accent-color:#f97316" />
             All boundaries
         </label>
         <button onclick="toggleTree()" id="btnTree">Tree</button>
         <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;user-select:none">
-            <input type="checkbox" id="autoRefresh" checked style="cursor:pointer" />
+            <input type="checkbox" id="autoRefresh" checked style="cursor:pointer;accent-color:#f97316" />
             Auto-refresh
         </label>
         <span class="status" id="status">Connecting...</span>
@@ -473,7 +545,7 @@
 
     // ── Event filter system ──
     const EVENT_TYPE_COLORS = {
-        'analytics': { color: '#ff9800', bg: 'rgba(255,152,0,0.12)', label: 'Analytics' },
+        'analytics': { color: '#f97316', bg: 'rgba(249,115,22,0.12)', label: 'Analytics' },
         'deeplink':  { color: '#4dd0e1', bg: 'rgba(77,208,225,0.12)', label: 'Deeplink' },
     };
     let activeEventFilters = new Set();
@@ -726,9 +798,9 @@
                 rect.dataset.filterColor = filterMatch.color;
                 rect.dataset.filterBg = filterMatch.bg;
             } else if (boundsVisible) {
-                rect.style.outline = '1px solid rgba(76,175,80,0.35)';
+                rect.style.outline = '1px solid rgba(63,185,80,0.35)';
             } else if (componentBoundsVisible && el.isComponentRoot) {
-                rect.style.outline = '1px solid rgba(76,175,80,0.35)';
+                rect.style.outline = '1px solid rgba(63,185,80,0.35)';
             }
             if (i === selectedIndex) rect.classList.add('selected');
 
@@ -834,6 +906,10 @@
         // Sort by Y position
         annotations.sort((a, b) => a.centerY - b.centerY);
 
+        // Place cards at component Y positions, push down to avoid overlap
+        const cardGap = 8;
+        let nextY = 0;
+
         annotations.forEach((ann, idx) => {
             const card = document.createElement('div');
             card.className = 'annotation-card';
@@ -857,23 +933,29 @@
 
             card.innerHTML = html;
             card.addEventListener('click', () => selectElement(ann.index));
+
+            // Position at component's Y, but push down if overlapping previous card
+            const desiredY = ann.centerY - 20;
+            const cardY = Math.max(nextY, desiredY);
+            card.style.top = cardY + 'px';
+            ann._cardY = cardY;
+
             layer.appendChild(card);
+
+            const cardHeight = card.offsetHeight || 60;
+            nextY = cardY + cardHeight + cardGap;
         });
 
-        // Draw SVG connectors after cards are in the DOM
+        // Draw SVG connectors
         requestAnimationFrame(() => {
-            const cards = layer.querySelectorAll('.annotation-card');
             const layerRect = layer.getBoundingClientRect();
 
             annotations.forEach((ann, idx) => {
-                const cardEl = cards[idx];
-                if (!cardEl) return;
-                const cardRect = cardEl.getBoundingClientRect();
-
                 const fromX = frameRect.left - contentRect.left + ann.rightX;
                 const fromY = frameRect.top - contentRect.top + ann.centerY;
-                const toX = layerRect.left - contentRect.left;
-                const toY = cardRect.top - contentRect.top + Math.min(cardRect.height / 2, 20);
+                const toX = layerRect.left - contentRect.left + 10;
+                const cardHeight = layer.querySelectorAll('.annotation-card')[idx]?.offsetHeight || 60;
+                const toY = frameRect.top - contentRect.top + ann._cardY + Math.min(cardHeight / 2, 20);
 
                 const midX = (fromX + toX) / 2;
                 const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
@@ -983,26 +1065,26 @@
         html += '<div class="detail-label">Type</div><div class="detail-value highlight">' + el.displayName + '</div>';
 
         if (el._strategy === 'compose') {
-            if (el.componentType) html += '<div class="detail-label">Component</div><div class="detail-value" style="color:#ff9800;font-weight:600">' + el.componentType + '</div>';
-            if (el.componentId) html += '<div class="detail-label">Component ID</div><div class="detail-value" style="color:#ff9800;font-size:11px">' + el.componentId + '</div>';
-            if (el.role) html += '<div class="detail-label">Role</div><div class="detail-value" style="color:#a5d6a7">' + el.role + '</div>';
-            if (el.text) html += '<div class="detail-label">Text</div><div class="detail-value" style="color:#ffab40">"' + el.text + '"</div>';
+            if (el.componentType) html += '<div class="detail-label">Component</div><div class="detail-value" style="color:#f97316;font-weight:600">' + el.componentType + '</div>';
+            if (el.componentId) html += '<div class="detail-label">Component ID</div><div class="detail-value" style="color:#f97316;font-size:11px">' + el.componentId + '</div>';
+            if (el.role) html += '<div class="detail-label">Role</div><div class="detail-value" style="color:#3fb950">' + el.role + '</div>';
+            if (el.text) html += '<div class="detail-label">Text</div><div class="detail-value" style="color:#d29922">"' + el.text + '"</div>';
             if (el.contentDesc) html += '<div class="detail-label">Description</div><div class="detail-value">' + el.contentDesc + '</div>';
-            if (el.testTag) html += '<div class="detail-label">Test Tag</div><div class="detail-value" style="color:#ce93d8">' + el.testTag + '</div>';
+            if (el.testTag) html += '<div class="detail-label">Test Tag</div><div class="detail-value" style="color:#58a6ff">' + el.testTag + '</div>';
             html += '<div class="detail-label">Node ID</div><div class="detail-value">' + el.id + '</div>';
             if (el.parentId >= 0) html += '<div class="detail-label">Parent ID</div><div class="detail-value">' + el.parentId + '</div>';
             html += '<div class="detail-label">Children</div><div class="detail-value">' + (el.childIds ? el.childIds.length : 0) + '</div>';
-            if (el.mergesDescendants) html += '<div class="detail-label">Merging</div><div class="detail-value" style="color:#ff9800">true</div>';
+            if (el.mergesDescendants) html += '<div class="detail-label">Merging</div><div class="detail-value" style="color:#f97316">true</div>';
         } else {
             if (el.fullClass) html += '<div class="detail-label">Full Class</div><div class="detail-value">' + el.fullClass + '</div>';
-            if (el.text) html += '<div class="detail-label">Text</div><div class="detail-value" style="color:#ffab40">"' + el.text + '"</div>';
-            if (el.resourceId) html += '<div class="detail-label">Resource ID</div><div class="detail-value" style="color:#ce93d8">' + el.resourceId + '</div>';
+            if (el.text) html += '<div class="detail-label">Text</div><div class="detail-value" style="color:#d29922">"' + el.text + '"</div>';
+            if (el.resourceId) html += '<div class="detail-label">Resource ID</div><div class="detail-value" style="color:#58a6ff">' + el.resourceId + '</div>';
             if (el.contentDesc) html += '<div class="detail-label">Description</div><div class="detail-value">' + el.contentDesc + '</div>';
             if (el.pkg) html += '<div class="detail-label">Package</div><div class="detail-value">' + el.pkg + '</div>';
         }
 
         html += '<div class="detail-label">Position</div><div class="detail-value">(' + el.bounds.left + ', ' + el.bounds.top + ')</div>';
-        html += '<div class="detail-label">Size</div><div class="detail-value" style="color:#81d4fa">' + el.width + ' \u00d7 ' + el.height + ' px</div>';
+        html += '<div class="detail-label">Size</div><div class="detail-value" style="color:#58a6ff">' + el.width + ' \u00d7 ' + el.height + ' px</div>';
         html += '<div class="detail-label">Bounds</div><div class="detail-value">[' + el.bounds.left + ',' + el.bounds.top + '][' + el.bounds.right + ',' + el.bounds.bottom + ']</div>';
         html += '</div>';
 
@@ -1020,20 +1102,20 @@
             if (comp) {
                 const allEvents = collectEventsRecursive(comp);
                 if (allEvents.length > 0) {
-                    html += '<div class="json-section"><h3 style="color:#ff9800">Events (' + allEvents.length + ')</h3>';
+                    html += '<div class="json-section"><h3 style="color:#f97316">Events (' + allEvents.length + ')</h3>';
                     allEvents.forEach(ev => {
                         const meta = EVENT_TYPE_COLORS[ev.eventType] || { color: '#888', label: ev.eventType };
-                        html += '<div style="margin-bottom:6px;padding:8px;background:#0d1117;border-radius:6px;border-left:3px solid ' + meta.color + '">';
+                        html += '<div style="margin-bottom:6px;padding:8px;background:#161b22;border:1px solid #30363d;border-radius:8px;border-left:3px solid ' + meta.color + '">';
                         html += '<div style="font-size:11px;color:' + meta.color + ';font-weight:700;text-transform:uppercase;margin-bottom:4px">' + meta.label + '</div>';
                         if (ev.eventType === 'analytics') {
-                            html += '<div style="font-size:12px;font-family:monospace;color:#a5d6a7">' + escapeHtml(ev.eventName) + '</div>';
+                            html += '<div style="font-size:12px;font-family:monospace;color:#3fb950">' + escapeHtml(ev.eventName) + '</div>';
                             if (ev.params && Object.keys(ev.params).length > 0) {
                                 for (const [k, v] of Object.entries(ev.params)) {
                                     html += '<div class="prop-row"><span class="prop-key">' + escapeHtml(k) + ':</span><span class="prop-val">' + escapeHtml(v) + '</span></div>';
                                 }
                             }
                         } else if (ev.eventType === 'deeplink') {
-                            html += '<div style="font-size:12px;font-family:monospace;color:#4dd0e1">' + escapeHtml(ev.url) + '</div>';
+                            html += '<div style="font-size:12px;font-family:monospace;color:#58a6ff">' + escapeHtml(ev.url) + '</div>';
                         }
                         html += '</div>';
                     });
@@ -1185,8 +1267,8 @@
         const rect = document.querySelector('.element-rect[data-index="' + i + '"]');
         if (!rect || rect.classList.contains('selected')) return;
         if (on) {
-            rect.style.outline = '2px solid #ff9800';
-            rect.style.background = 'rgba(255,152,0,0.2)';
+            rect.style.outline = '2px solid #f97316';
+            rect.style.background = 'rgba(249,115,22,0.2)';
         } else {
             // Restore filter highlight or default
             if (rect.dataset.filterColor) {
@@ -1195,7 +1277,7 @@
             } else {
                 const el = hierarchy[i];
                 const showBound = boundsVisible || (componentBoundsVisible && el && el.isComponentRoot);
-                rect.style.outline = showBound ? '1px solid rgba(76,175,80,0.35)' : 'none';
+                rect.style.outline = showBound ? '1px solid rgba(63,185,80,0.35)' : 'none';
                 rect.style.background = 'transparent';
             }
         }
